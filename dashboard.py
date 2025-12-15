@@ -217,14 +217,19 @@ if symbol:
                 else:
                     st.warning("Yahoo chưa cập nhật danh sách lãnh đạo cho mã này.")
                 
-                st.divider()
                 st.subheader("Cổ đông lớn")
                 if not holders.empty:
-                    # Đổi tên cột cho dễ hiểu
-                    holders.columns = ['% Nắm giữ', 'Tên Cổ đông'] 
-                    st.dataframe(holders, use_container_width=True)
+                    try:
+                        # Chỉ đổi tên nếu đúng là có 2 cột
+                        if holders.shape[1] == 2:
+                            holders.columns = ['% Nắm giữ', 'Tên Cổ đông']
+                        st.dataframe(holders, use_container_width=True)
+                    except:
+                        # Nếu lỗi thì cứ in bảng gốc ra, không sửa tên nữa
+                        st.dataframe(holders, use_container_width=True)
                 else:
                     st.write("Chưa có dữ liệu cổ đông.")
 
     else:
         st.error(f"Không tìm thấy dữ liệu cho mã {symbol}")
+
