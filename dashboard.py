@@ -9,7 +9,63 @@ from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
 st.set_page_config(layout="wide", page_title="Stock V13.2", page_icon="⚡")
+# ==========================================
+# 🔐 HỆ THỐNG ĐĂNG NHẬP ĐA NGƯỜI DÙNG (NEW)
+# ==========================================
 
+# 1. DANH SÁCH TÀI KHOẢN (SỔ HỘ KHẨU)
+# Ngài hãy sửa/thêm người dùng tại đây. Cấu trúc: "Tên_Đăng_Nhập": "Mật_Khẩu"
+USERS_DB = {
+    "admin": "admin123",      # Tài khoản của Ngài
+    "stock": "stock123",          # Tài khoản cho khách VIP
+    "guest": "123456",        # Tài khoản khách thường
+    "guest1": "123456"   # Tài khoản dự phòng
+}
+
+# 2. KHỞI TẠO TRẠNG THÁI ĐĂNG NHẬP
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+if 'user_name' not in st.session_state:
+    st.session_state['user_name'] = ""
+
+# 3. HÀM XỬ LÝ ĐĂNG NHẬP
+def login():
+    st.title("🔐 CỔNG THÀNH THĂNG LONG")
+    st.write("Vui lòng xuất trình lệnh bài để tiến vào.")
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        username = st.text_input("Tên đăng nhập:")
+        password = st.text_input("Mật khẩu:", type="password")
+        
+        if st.button("🚪 Đăng Nhập", type="primary"):
+            if username in USERS_DB and USERS_DB[username] == password:
+                st.session_state['logged_in'] = True
+                st.session_state['user_name'] = username
+                st.success("✅ Xác minh thành công! Đang mở cổng...")
+                st.rerun() # Tải lại trang để vào trong
+            else:
+                st.error("❌ Sai tên đăng nhập hoặc mật khẩu!")
+
+# 4. KIỂM TRA: NẾU CHƯA ĐĂNG NHẬP -> DỪNG LẠI & HIỆN FORM LOGIN
+if not st.session_state['logged_in']:
+    login()
+    st.stop() # Dừng toàn bộ code phía sau, không cho xem nội dung
+
+# ==========================================
+# 🚀 NỘI DUNG CHÍNH (CHỈ CHẠY KHI ĐÃ LOGIN)
+# ==========================================
+
+# --- SIDEBAR: HIỂN THỊ NGƯỜI DÙNG & LOGOUT ---
+st.sidebar.title("🎛️ Trạm Điều Khiển")
+st.sidebar.info(f"👤 Xin chào: **{st.session_state['user_name']}**") # Hiện tên người đang dùng
+
+if st.sidebar.button("👋 Đăng Xuất"):
+    st.session_state['logged_in'] = False
+    st.session_state['user_name'] = ""
+    st.rerun()
+
+st.sidebar.divider() # Đường kẻ phân cách
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
 # ==========================================
@@ -303,4 +359,5 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
