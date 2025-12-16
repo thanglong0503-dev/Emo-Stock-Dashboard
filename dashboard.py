@@ -7,153 +7,147 @@ import pandas_ta as ta
 from datetime import datetime
 
 # --- CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Oracle V8", page_icon="🔮")
+st.set_page_config(layout="wide", page_title="Thăng Long Masterpiece V8.1", page_icon="🐲")
 
-# CSS: Giao diện chuyên gia
+# --- CSS: GIAO DIỆN "PROFESSIONAL DARK" (KHÔNG CHÓI) ---
 st.markdown("""
 <style>
-    [data-testid="stMetricValue"] {font-size: 1.3rem !important; color: #00e676;}
-    h1, h2, h3 {color: #2979ff !important;}
-    .stDataFrame {border: 1px solid #444; border-radius: 8px;}
+    /* Tổng thể */
+    .main {background-color: #0e1117;}
+    h1, h2, h3 {color: #64b5f6 !important;} /* Xanh dương dịu */
+    [data-testid="stMetricValue"] {font-size: 1.3rem !important; color: #e0e0e0;}
     
-    /* Signal Badges */
-    .signal-box {padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; color: white;}
-    .bg-buy {background-color: #00c853; border: 2px solid #00e676;}
-    .bg-sell {background-color: #d50000; border: 2px solid #ff5252;}
-    .bg-wait {background-color: #ff6d00; border: 2px solid #ffab00;}
+    /* Signal Box: Thiết kế dạng thẻ, không tô màu nền chói */
+    .signal-card {
+        background-color: #1f2937;
+        border: 1px solid #374151;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .sig-buy {border-left: 5px solid #10b981; color: #10b981;} /* Xanh ngọc */
+    .sig-sell {border-left: 5px solid #ef4444; color: #ef4444;} /* Đỏ nhung */
+    .sig-wait {border-left: 5px solid #f59e0b; color: #f59e0b;} /* Vàng nghệ */
     
-    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #0e1117; color: #888; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #333;}
+    /* Text nổi bật */
+    .big-score {font-size: 24px; font-weight: bold;}
+    
+    /* Footer */
+    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #6b7280; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- TỪ ĐIỂN TÀI CHÍNH ---
+# --- TỪ ĐIỂN TÀI CHÍNH (ĐẦY ĐỦ 35 CHỈ SỐ CỦA V7) ---
 TRANS_MAP = {
-    'Total Revenue': '1. Tổng Doanh Thu', 'Gross Profit': '3. Lợi Nhuận Gộp',
-    'Net Income': '9. Lợi Nhuận Sau Thuế', 'Basic EPS': '11. EPS Cơ Bản',
-    'Total Assets': 'A. TỔNG TÀI SẢN', 'Total Liabilities Net Minority Interest': 'B. TỔNG NỢ',
-    'Stockholders Equity': 'C. VỐN CHỦ SỞ HỮU', 'Operating Cash Flow': '1. Dòng Tiền KD'
+    # Kết quả kinh doanh
+    'Total Revenue': '1. Tổng Doanh Thu', 'Operating Revenue': '   - Doanh thu HĐ',
+    'Cost Of Revenue': '2. Giá Vốn Hàng Bán', 'Gross Profit': '3. Lợi Nhuận Gộp',
+    'Operating Expense': '4. Chi Phí Hoạt Động', 'Operating Income': '5. Lợi Nhuận Từ HĐKD',
+    'Net Income': '9. Lợi Nhuận Sau Thuế', 'EBITDA': '10. EBITDA', 'Basic EPS': '11. EPS Cơ Bản',
+    # Cân đối kế toán
+    'Total Assets': 'A. TỔNG TÀI SẢN', 'Current Assets': '   I. Tài sản Ngắn hạn',
+    'Cash And Cash Equivalents': '      1. Tiền & Tương đương tiền', 'Inventory': '      2. Hàng Tồn kho',
+    'Total Liabilities Net Minority Interest': 'B. TỔNG NỢ', 'Stockholders Equity': 'C. VỐN CHỦ SỞ HỮU',
+    # Dòng tiền
+    'Operating Cash Flow': '1. Dòng Tiền KD', 'Investing Cash Flow': '2. Dòng Tiền Đầu Tư',
+    'Financing Cash Flow': '3. Dòng Tiền Tài Chính', 'Free Cash Flow': '-> Dòng Tiền Tự Do'
 }
 
 # --- SIDEBAR ---
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**")
-mode = st.sidebar.radio("Chọn Chế Độ:", ["🔮 Phân Tích Chuyên Sâu", "⚡ Máy Quét Cơ Hội (Scanner)"])
+mode = st.sidebar.radio("Chọn Chế Độ:", ["🔮 Phân Tích Chuyên Sâu", "⚡ Máy Quét (Scanner)"])
 
-# --- HÀM TÍNH TOÁN CHIẾN LƯỢC (BỘ NÃO V8) ---
-def analyze_strategy_v8(df):
+# --- BỘ NÃO AI (LOGIC V8 - GIỮ NGUYÊN) ---
+def analyze_strategy(df):
     if df.empty or len(df) < 50: return None
-    
-    # Lấy dữ liệu mới nhất
     last = df.iloc[-1]
-    prev = df.iloc[-2]
     
     close = last['Close']
     rsi = last['RSI_14']
     ma50 = last['SMA_50']
     macd = last['MACD_12_26_9']
     macds = last['MACDs_12_26_9']
-    atr = last['ATRr_14'] # Average True Range (Đo biến động)
+    atr = last['ATRr_14']
     
-    score = 5.0 # Điểm cơ bản
+    score = 5.0
     reasons = []
     
-    # 1. PHÂN TÍCH XU HƯỚNG (TREND)
-    if close > ma50:
-        score += 2
-        reasons.append("✅ Giá nằm trên MA50 (Xu hướng Tăng)")
-    else:
-        score -= 2
-        reasons.append("⚠️ Giá nằm dưới MA50 (Xu hướng Giảm/Yếu)")
+    # 1. Trend
+    if close > ma50: score += 2; reasons.append("✅ Xu hướng Tăng (Giá > MA50)")
+    else: score -= 2; reasons.append("🔻 Xu hướng Giảm (Giá < MA50)")
         
-    # 2. ĐỘNG LƯỢNG (MOMENTUM - RSI)
-    if rsi < 30:
-        score += 3
-        reasons.append("✅ RSI Quá bán (Vùng giá rẻ)")
-    elif rsi > 70:
-        score -= 3
-        reasons.append("⚠️ RSI Quá mua (Rủi ro chỉnh)")
-    else:
-        reasons.append(f"ℹ️ RSI Trung tính ({rsi:.1f})")
+    # 2. Momentum
+    if rsi < 30: score += 3; reasons.append("✅ Quá bán (Vùng giá rẻ - RSI < 30)")
+    elif rsi > 70: score -= 3; reasons.append("🔻 Quá mua (Nóng - RSI > 70)")
+    else: reasons.append(f"ℹ️ RSI Trung tính ({rsi:.1f})")
         
-    # 3. MACD (Đảo chiều)
-    if macd > macds:
-        score += 1
-        reasons.append("✅ MACD cắt lên Signal (Đà tăng)")
-    else:
-        score -= 1
-        reasons.append("⚠️ MACD cắt xuống Signal (Đà giảm)")
+    # 3. MACD
+    if macd > macds: score += 1; reasons.append("✅ MACD cắt lên Signal")
+    else: score -= 1; reasons.append("🔻 MACD cắt xuống Signal")
         
-    # TỔNG HỢP TÍN HIỆU
-    action = "NẮM GIỮ / QUAN SÁT"
-    css_class = "bg-wait"
-    
-    if score >= 7:
-        action = "KHUYẾN NGHỊ: MUA"
-        css_class = "bg-buy"
-    elif score <= 3:
-        action = "KHUYẾN NGHỊ: BÁN"
-        css_class = "bg-sell"
+    # Kết luận
+    action = "QUAN SÁT"
+    css = "sig-wait"
+    if score >= 7: action = "KHUYẾN NGHỊ MUA"; css = "sig-buy"
+    elif score <= 3: action = "KHUYẾN NGHỊ BÁN"; css = "sig-sell"
         
-    # TÍNH TOÁN MỤC TIÊU (TARGET & STOPLOSS) DỰA TRÊN ATR
-    # ATR là biên độ dao động trung bình. Stoploss thường là 2 lần ATR.
-    stop_loss = close - (2 * atr)
-    target_1 = close + (2 * atr)  # R:R = 1:1
-    target_2 = close + (4 * atr)  # R:R = 1:2 (Lãi gấp đôi lỗ)
-    
     return {
-        "score": score,
-        "action": action,
-        "css": css_class,
-        "reasons": reasons,
-        "stop_loss": stop_loss,
-        "target_1": target_1,
-        "target_2": target_2,
-        "roi_1": ((target_1 - close)/close)*100,
-        "roi_2": ((target_2 - close)/close)*100,
-        "atr": atr
+        "score": score, "action": action, "css": css, "reasons": reasons,
+        "entry": close, "stop_loss": close - (2*atr),
+        "target_1": close + (2*atr), "target_2": close + (4*atr),
+        "roi_2": ((4*atr)/close)*100
     }
 
-# --- HÀM TẢI DỮ LIỆU ---
+# --- TẢI DỮ LIỆU (ROBUST) ---
 @st.cache_data(ttl=300)
-def load_data_v8(ticker, time):
+def load_data_v81(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
-    # Lấy khung ngày (1d) để tính toán chiến lược chuẩn nhất
-    # Nếu muốn xem Intraday thì chart vẽ riêng, còn tính toán dùng nến ngày
+    
+    # Dữ liệu tính toán (Luôn lấy 1 năm để AI tính chuẩn)
     try:
-        df = stock.history(period="1y") # Lấy 1 năm để đủ dữ liệu tính MA200 nếu cần
-        if len(df) > 50:
-            df.ta.sma(length=20, append=True)
-            df.ta.sma(length=50, append=True)
-            df.ta.rsi(length=14, append=True)
-            df.ta.bbands(length=20, std=2, append=True)
-            df.ta.macd(append=True)
-            df.ta.atr(length=14, append=True) # QUAN TRỌNG: Tính ATR để đo biến động
-    except: df = pd.DataFrame()
+        df_calc = stock.history(period="1y")
+        if len(df_calc) > 50:
+            df_calc.ta.sma(length=20, append=True)
+            df_calc.ta.sma(length=50, append=True)
+            df_calc.ta.rsi(length=14, append=True)
+            df_calc.ta.bbands(length=20, std=2, append=True)
+            df_calc.ta.macd(append=True)
+            df_calc.ta.atr(length=14, append=True)
+    except: df_calc = pd.DataFrame()
 
-    # Dữ liệu hiển thị (Chart) có thể theo khung thời gian user chọn
+    # Dữ liệu vẽ biểu đồ (Theo khung user chọn)
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
-        chart_df = stock.history(period=time, interval=interval)
-        if not chart_df.empty: # Tính chỉ báo cho chart hiển thị
-             chart_df.ta.sma(length=20, append=True)
-             chart_df.ta.bbands(length=20, std=2, append=True)
-    except: chart_df = pd.DataFrame()
+        df_chart = stock.history(period=time, interval=interval)
+        if not df_chart.empty:
+            df_chart.ta.sma(length=20, append=True)
+            df_chart.ta.sma(length=50, append=True)
+            df_chart.ta.bbands(length=20, std=2, append=True)
+            df_chart.ta.rsi(length=14, append=True) # Thêm RSI cho chart
+            df_chart.ta.macd(append=True) # Thêm MACD cho chart
+    except: df_chart = pd.DataFrame()
 
-    try: info = stock.info
+    # Dữ liệu cơ bản (Khôi phục đầy đủ)
+    try: info = stock.info; 
     except: info = {}
-    try: fin = stock.financials
+    try: fin = stock.financials; 
     except: fin = pd.DataFrame()
-    try: bal = stock.balance_sheet
+    try: bal = stock.balance_sheet; 
     except: bal = pd.DataFrame()
-    try: cash = stock.cashflow
+    try: cash = stock.cashflow; 
     except: cash = pd.DataFrame()
+    try: holders = stock.major_holders; 
+    except: holders = pd.DataFrame()
     try: news = stock.news
     except: news = []
 
-    return df, chart_df, info, fin, bal, cash, news
+    return df_calc, df_chart, info, fin, bal, cash, holders, news
 
-# --- HÀM HỖ TRỢ ---
+# --- HỖ TRỢ HIỂN THỊ ---
 def clean_table(df):
     if df.empty: return pd.DataFrame()
     valid = [i for i in df.index if i in TRANS_MAP]
@@ -166,142 +160,157 @@ def clean_table(df):
     return df_new
 
 # ==========================================
-# GIAO DIỆN 1: PHÂN TÍCH CHUYÊN SÂU
+# GIAO DIỆN CHÍNH
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
-    symbol = st.sidebar.text_input("Mã CP", value="HPG").upper()
-    period = st.sidebar.selectbox("Khung thời gian Chart", ["1d", "5d", "1mo", "6mo", "1y"], index=3)
+    symbol = st.sidebar.text_input("Nhập Mã CP", value="HPG").upper()
+    period = st.sidebar.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Cấu hình biểu đồ")
+    show_ma = st.sidebar.checkbox("MA (20, 50)", True)
+    show_bb = st.sidebar.checkbox("Bollinger Bands", True)
+    show_macd = st.sidebar.checkbox("MACD", True)
+    show_rsi = st.sidebar.checkbox("RSI", True)
+
     if symbol:
-        # df: Dùng để tính toán chiến lược (Daily) | chart_df: Dùng để vẽ biểu đồ (User chọn)
-        df_calc, chart_df, info, fin, bal, cash, news = load_data_v8(symbol, period)
+        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v81(symbol, period)
         
-        if not chart_df.empty:
-            st.title(f"🔮 {info.get('longName', symbol)}")
+        if not df_chart.empty:
+            st.title(f"💎 {info.get('longName', symbol)}")
             
-            # --- PHÂN TÍCH CHIẾN LƯỢC (AI STRATEGY) ---
-            strategy = analyze_strategy_v8(df_calc)
-            
-            if strategy:
-                # 1. HỘP TÍN HIỆU CHÍNH
+            # 1. AI SIGNAL CARD (Giao diện mới dịu mắt)
+            strat = analyze_strategy(df_calc)
+            if strat:
                 st.markdown(f"""
-                <div class="signal-box {strategy['css']}">
-                    <h2>{strategy['action']} (Điểm: {strategy['score']}/10)</h2>
+                <div class="signal-card {strat['css']}">
+                    <div class="big-score">{strat['action']} (Điểm: {strat['score']}/10)</div>
+                    <div style="margin-top: 10px; font-size: 14px; color: #bbb;">
+                        {' | '.join(strat['reasons'])}
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # 2. BẢNG KẾ HOẠCH GIAO DỊCH (TRADING PLAN)
-                st.subheader("📋 Kế Hoạch Giao Dịch (Tham khảo)")
-                c1, c2, c3, c4 = st.columns(4)
-                
-                cur_price = df_calc['Close'].iloc[-1]
-                
-                c1.metric("1. Giá vào lệnh (Entry)", f"{cur_price:,.0f} ₫")
-                c2.metric("2. Cắt lỗ (Stoploss)", f"{strategy['stop_loss']:,.0f} ₫", 
-                          f"-{((cur_price - strategy['stop_loss'])/cur_price)*100:.2f}%", delta_color="inverse")
-                
-                c3.metric("3. Mục tiêu 1 (Ngắn hạn)", f"{strategy['target_1']:,.0f} ₫", 
-                          f"+{strategy['roi_1']:.2f}%")
-                
-                c4.metric("4. Mục tiêu 2 (Trung hạn)", f"{strategy['target_2']:,.0f} ₫", 
-                          f"+{strategy['roi_2']:.2f}%")
-                
-                # 3. LÝ DO KHUYẾN NGHỊ
-                with st.expander("🧐 Tại sao AI đưa ra nhận định này?"):
-                    for reason in strategy['reasons']:
-                        st.write(reason)
-                    st.caption(f"*Biên độ biến động (ATR): {strategy['atr']:,.0f} đồng/phiên. Stoploss và Target được tính dựa trên biên độ này để tránh bị quét lệnh oan.*")
 
+                # Kế hoạch giao dịch (Hiển thị gọn gàng)
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Giá Vào", f"{strat['entry']:,.0f}")
+                k2.metric("Cắt Lỗ (Stop)", f"{strat['stop_loss']:,.0f}")
+                k3.metric("Mục Tiêu 1", f"{strat['target_1']:,.0f}")
+                k4.metric("Mục Tiêu 2", f"{strat['target_2']:,.0f}", f"+{strat['roi_2']:.1f}%")
+            
             st.divider()
             
-            # --- TABS (GIỮ NGUYÊN TỪ V7) ---
-            t1, t2, t3 = st.tabs(["📊 Biểu đồ", "💰 Tài chính", "📰 Tin tức"])
+            # 2. TAB CHI TIẾT (KHÔI PHỤC ĐẦY ĐỦ TỪ V7)
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "💰 Tài Chính", "🏢 Hồ Sơ", "📰 Tin Tức"])
             
+            # TAB 1: CHART 4 TẦNG (V6 Style)
             with t1:
-                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.03)
-                fig.add_trace(go.Candlestick(x=chart_df.index, open=chart_df['Open'], high=chart_df['High'], low=chart_df['Low'], close=chart_df['Close'], name='Giá'), row=1, col=1)
+                row_h = [0.5, 0.15, 0.2, 0.15]
+                fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
                 
-                if 'SMA_20' in chart_df.columns:
-                    fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['SMA_20'], line=dict(color='orange'), name='MA20'), row=1, col=1)
-                if 'BBU_20_2.0' in chart_df.columns:
-                     fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Up'), row=1, col=1)
-                     fig.add_trace(go.Scatter(x=chart_df.index, y=chart_df['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Low', fill='tonexty'), row=1, col=1)
+                # Giá
+                fig.add_trace(go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'], name='Giá'), row=1, col=1)
+                if show_ma:
+                    if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+                    if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
+                if show_bb and 'BBU_20_2.0' in df_chart.columns:
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Up'), row=1, col=1)
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Low', fill='tonexty'), row=1, col=1)
                 
-                vol_colors = ['red' if r['Open'] > r['Close'] else 'green' for i, r in chart_df.iterrows()]
-                fig.add_trace(go.Bar(x=chart_df.index, y=chart_df['Volume'], marker_color=vol_colors, name='Vol'), row=2, col=1)
+                # Volume
+                colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df_chart.iterrows()]
+                fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=colors, name='Vol'), row=2, col=1)
                 
-                fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
+                # MACD
+                if show_macd and 'MACD_12_26_9' in df_chart.columns:
+                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee'), name='MACD'), row=3, col=1)
+                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6'), name='Signal'), row=3, col=1)
+                    fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
+                
+                # RSI
+                if show_rsi and 'RSI_14' in df_chart.columns:
+                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['RSI_14'], line=dict(color='#a78bfa', width=2), name='RSI'), row=4, col=1)
+                    fig.add_hline(y=70, row=4, col=1, line_dash="dot", line_color="#ef4444")
+                    fig.add_hline(y=30, row=4, col=1, line_dash="dot", line_color="#10b981")
+
+                fig.update_layout(height=800, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
                 st.plotly_chart(fig, use_container_width=True)
-                
+
+            # TAB 2: TÀI CHÍNH (Full 3 bảng)
             with t2:
-                c1, c2 = st.columns(2)
-                with c1: 
+                st.caption("Đơn vị: Tỷ VNĐ")
+                c_left, c_right = st.columns(2)
+                with c_left:
                     st.subheader("Kết quả kinh doanh")
-                    st.dataframe(clean_table(fin).style.format("{:,.2f}"))
-                with c2: 
+                    st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True)
+                    st.subheader("Dòng tiền")
+                    st.dataframe(clean_table(cash).style.format("{:,.2f}"), use_container_width=True)
+                with c_right:
                     st.subheader("Cân đối kế toán")
-                    st.dataframe(clean_table(bal).style.format("{:,.2f}"))
+                    st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
             
+            # TAB 3: HỒ SƠ
             with t3:
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    st.write(info.get('longBusinessSummary', 'Đang cập nhật...'))
+                with c2:
+                    st.info(f"Ngành: {info.get('industry', 'N/A')}")
+                    st.success(f"Nhân sự: {info.get('fullTimeEmployees', 'N/A')}")
+                    st.write("---")
+                    st.subheader("Cổ đông lớn")
+                    try:
+                        if not holders.empty and holders.shape[1] == 2: holders.columns = ['% Nắm', 'Tên']
+                        st.dataframe(holders, use_container_width=True)
+                    except: st.write("Chưa có dữ liệu")
+
+            # TAB 4: TIN TỨC (Có Fallback Google)
+            with t4:
                 if news:
                     for n in news:
                         try:
-                            ts = n.get('providerPublishTime', 0)
-                            dt = datetime.fromtimestamp(ts).strftime('%d/%m %H:%M')
-                            st.markdown(f"**{dt}** - [{n.get('title')}]({n.get('link')})")
+                            dt = datetime.fromtimestamp(n.get('providerPublishTime',0)).strftime('%d/%m %H:%M')
+                            st.markdown(f"**{dt}** | [{n.get('title')}]({n.get('link')})")
                         except: pass
                 else:
-                    st.info("Không có tin tức mới.")
-                    st.markdown(f"[Tra cứu Google News](https://www.google.com/search?q=tin+tuc+co+phieu+{symbol}&tbm=nws)")
+                    st.warning("Yahoo Finance chưa cập nhật tin tức.")
+                    st.markdown(f"👉 [Tìm trên Google News](https://www.google.com/search?q=tin+tuc+co+phieu+{symbol}&tbm=nws)")
 
 # ==========================================
-# GIAO DIỆN 2: SCANNER (BẢN ORACLE)
+# GIAO DIỆN SCANNER (MÁY QUÉT)
 # ==========================================
-elif mode == "⚡ Máy Quét Cơ Hội (Scanner)":
-    st.title("⚡ Máy Quét Cơ Hội Đầu Tư (Oracle Scanner)")
-    input_str = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO, NVL")
+elif mode == "⚡ Máy Quét (Scanner)":
+    st.title("⚡ Máy Quét Cơ Hội (Oracle Scanner)")
+    input_str = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO")
     
-    if st.button("🚀 PHÂN TÍCH TOÀN BỘ"):
+    if st.button("🚀 BẮT ĐẦU QUÉT"):
         tickers = [x.strip().upper() for x in input_str.split(',')]
         results = []
-        my_bar = st.progress(0, text="AI đang phân tích...")
+        bar = st.progress(0, "AI đang phân tích...")
         
         for i, ticker in enumerate(tickers):
-            my_bar.progress((i + 1) / len(tickers), text=f"Đang chấm điểm: {ticker}...")
+            bar.progress((i+1)/len(tickers), f"Đang chấm điểm: {ticker}")
             try:
-                # Tải dữ liệu và tính toán
-                df_calc, _, _, _, _, _, _ = load_data_v8(ticker, "1y")
-                strat = analyze_strategy_v8(df_calc)
-                
+                df, _, _, _, _, _, _, _ = load_data_v81(ticker, "1y")
+                strat = analyze_strategy(df)
                 if strat:
                     results.append({
-                        "Mã": ticker,
-                        "Giá": f"{df_calc['Close'].iloc[-1]:,.0f}",
-                        "Điểm": strat['score'],
-                        "Hành động": strat['action'].replace("KHUYẾN NGHỊ: ", ""),
+                        "Mã": ticker, "Giá": f"{strat['entry']:,.0f}",
+                        "Điểm": strat['score'], "Hành động": strat['action'].replace("KHUYẾN NGHỊ ", ""),
                         "Lãi Kỳ Vọng": f"{strat['roi_2']:.1f}%"
                     })
             except: pass
-            
-        my_bar.empty()
+        bar.empty()
         
         if results:
-            res_df = pd.DataFrame(results)
-            # Sắp xếp theo Điểm cao nhất
-            res_df = res_df.sort_values(by="Điểm", ascending=False)
+            res_df = pd.DataFrame(results).sort_values(by="Điểm", ascending=False)
             
-            def color_row(val):
-                if 'MUA' in val: return 'color: #00e676; font-weight: bold'
-                if 'BÁN' in val: return 'color: #ff5252; font-weight: bold'
-                return ''
-
-            st.dataframe(res_df.style.map(color_row, subset=['Hành động']), use_container_width=True)
+            def color_sig(val):
+                if 'MUA' in val: return 'color: #10b981; font-weight: bold'
+                if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
+                return 'color: #f59e0b'
             
-            top_pick = res_df.iloc[0]
-            if top_pick['Điểm'] >= 7:
-                st.balloons()
-                st.success(f"🏆 Cổ phiếu tiềm năng nhất: **{top_pick['Mã']}** ({top_pick['Điểm']}/10 điểm) - Mục tiêu lãi: {top_pick['Lãi Kỳ Vọng']}")
-        else:
-            st.error("Không có dữ liệu.")
+            st.dataframe(res_df.style.map(color_sig, subset=['Hành động']), use_container_width=True)
+        else: st.error("Không có dữ liệu.")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V8 - The Oracle</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V8.1 - Masterpiece</div>', unsafe_allow_html=True)
