@@ -164,11 +164,23 @@ def load_data_v13(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
     try:
-        df_calc = stock.history(period="1y")
-        if len(df_calc) > 52:
-            df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
-            df_calc.ta.rsi(length=14, append=True); df_calc.ta.macd(append=True)
-            df_calc.ta.adx(length=14, append=True); df_calc.ta.atr(length=14, append=True)
+        df_calc = stock.history(period="2y") # Lấy 2 năm cho đủ dữ liệu
+        if len(df_calc) > 100:
+            # 1. SuperTrend (Quan trọng nhất)
+            sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
+            df_calc = df_calc.join(sti) 
+            
+            # 2. Các chỉ báo cao cấp khác
+            df_calc.ta.mfi(length=14, append=True) # Dòng tiền
+            df_calc.ta.stochrsi(length=14, append=True) # Điểm nổ
+            df_calc.ta.ema(length=34, append=True) # Sóng ngắn
+            df_calc.ta.ema(length=89, append=True) # Sóng dài
+            df_calc.ta.adx(length=14, append=True)
+            df_calc.ta.atr(length=14, append=True)
+            
+            # Giữ lại MA cơ bản để vẽ biểu đồ nếu cần
+            df_calc.ta.sma(length=20, append=True)
+            df_calc.ta.sma(length=50, append=True)
     except: df_calc = pd.DataFrame()
 
     try:
@@ -196,32 +208,75 @@ def load_data_v13(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news_items
 
 def analyze_smart(df):
-    if df.empty or len(df) < 52: return None
+    if df.empty or len(df) < 100: return None
     now = df.iloc[-1]
-    close = now['Close']; ma20 = now['SMA_20']; ma50 = now['SMA_50']
-    rsi = now['RSI_14']; macd = now['MACD_12_26_9']; macds = now['MACDs_12_26_9']
-    adx = now['ADX_14']; atr = now['ATRr_14']
-    vol_now = now['Volume']; vol_avg = df['Volume'].rolling(20).mean().iloc[-1]
-    high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
-    high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
-
-    score = 0; pros, cons = [], []
-    if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
-    if adx > 25: score += 1; pros.append(f"ADX Mạnh ({adx:.0f})")
-    if rsi < 30: score += 3; pros.append("RSI Quá bán")
-    elif rsi > 70: score -= 2; cons.append("RSI Quá mua")
-    if macd > macds: score += 1; pros.append("MACD cắt lên")
-    else: score -= 1; cons.append("MACD cắt xuống")
-    if close > tenkan and close > kijun: score += 1; pros.append("Ichimoku Tốt")
-    if vol_now > vol_avg*1.2 and close > df.iloc[-2]['Close']: score += 2; pros.append("Tiền vào mạnh")
     
-    final_score = max(0, min(10, 5 + score))
+    # Lấy dữ liệu
+    close = now['Close']
+    # Tìm cột SuperTrend (tên cột này hay thay đổi nên phải tìm động)
+    st_col = [c for c in df.columns if 'SUPERT' in c][0] 
+    supertrend = now[st_col]
+    
+    mfi = now.get('MFI_14', 50)
+    k = now.get('STOCHRSIk_14_14_3_3', 50) # StochRSI K
+    d = now.get('STOCHRSId_14_14_3_3', 50) # StochRSI D
+    adx = now.get('ADX_14', 0)
+    ema34 = now.get('EMA_34', 0)
+    ema89 = now.get('EMA_89', 0)
+    atr = now.get('ATRr_14', 0)
+
+    score = 0
+    pros = []
+    cons = []
+
+    # --- LOGIC CAO CẤP V14 ---
+    
+    # 1. SuperTrend (Vua xu hướng) - Chiếm trọng số cao nhất
+    if close > supertrend:
+        score += 3; pros.append("SuperTrend: BÁO TĂNG (Bullish)")
+    else:
+        score -= 2; cons.append("SuperTrend: BÁO GIẢM (Bearish)")
+
+    # 2. Hệ thống EMA (Sonic R)
+    if ema34 > ema89 and close > ema34:
+        score += 1; pros.append("EMA System: Xu hướng dài hạn Tốt")
+    elif close < ema89:
+        score -= 1; cons.append("EMA System: Gãy xu hướng dài hạn")
+
+    # 3. Dòng tiền thông minh (MFI) - Thay cho RSI thường
+    if mfi > 80:
+        score -= 1; cons.append(f"MFI ({mfi:.0f}): Tiền vào quá nóng")
+    elif mfi < 20:
+        score += 2; pros.append(f"MFI ({mfi:.0f}): Vùng gom hàng (Quá bán)")
+    elif mfi > 50 and mfi > df.iloc[-2]['MFI_14']:
+        score += 1; pros.append("MFI: Dòng tiền đang vào dần")
+
+    # 4. StochRSI (Điểm nổ ngắn hạn)
+    if k < 20 and k > d: # Cắt lên ở vùng đáy
+        score += 2; pros.append("StochRSI: Tín hiệu Đảo chiều Tăng")
+    
+    # 5. ADX (Độ mạnh xu hướng)
+    if adx > 25:
+        if close > supertrend: pros.append(f"ADX ({adx:.0f}): Trend Tăng khỏe")
+        
+    # --- TỔNG KẾT ---
+    # Cộng thêm 4 điểm cơ bản để thang điểm rơi vào 0-10
+    final_score = max(0, min(10, 4 + score)) 
+    
     action, zone = "QUAN SÁT", "yellow-zone"
     if final_score >= 8: action, zone = "MUA MẠNH", "green-zone"
     elif final_score >= 6: action, zone = "MUA THĂM DÒ", "green-zone"
     elif final_score <= 3: action, zone = "BÁN / CẮT LỖ", "red-zone"
     
-    return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
+    # Stoploss thông minh theo SuperTrend và ATR
+    stop_loss = close - 2*atr if close > supertrend else close + 2*atr
+    take_profit = close + 3*atr if close > supertrend else close - 3*atr
+
+    return {
+        "score": final_score, "action": action, "zone": zone, 
+        "pros": pros, "cons": cons, 
+        "entry": close, "stop": stop_loss, "target": take_profit
+    }
 
 def clean_table(df):
     if df.empty: return pd.DataFrame()
@@ -362,6 +417,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
