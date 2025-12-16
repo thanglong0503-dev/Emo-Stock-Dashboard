@@ -63,7 +63,7 @@ if st.sidebar.button("👋 Đăng Xuất"):
     st.rerun()
 st.sidebar.divider()
 
-# CSS làm đẹp
+# CSS làm đẹp (QUAN TRỌNG ĐỂ HIỆN THẺ BÀI)
 st.markdown("""
 <style>
     h1, h2, h3 {color: #64b5f6 !important;}
@@ -285,36 +285,41 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             strat = analyze_smart(df_calc)
             fund = analyze_fundamental(info)
             
-            # --- 2. HIỂN THỊ KẾT QUẢ ---
+            # --- 2. HIỂN THỊ KẾT QUẢ (PHẦN NÀY LÀ CÁI NGÀI CẦN NHẤT) ---
             if strat:
                 col_tech, col_fund = st.columns(2)
                 
+                # Cột Kỹ Thuật (TRÁI)
                 with col_tech:
                     st.markdown(f"""
                     <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
                         <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
                         <div class="score-circle {strat['zone']}">{strat['score']}</div>
                         <h2 style="margin:0">{strat['action']}</h2>
+                        <p style="color:gray; font-size:12px">Định thời điểm Mua/Bán</p>
                     </div>
                     """, unsafe_allow_html=True)
                     st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
-                    with st.expander("Chi tiết Kỹ Thuật"):
+                    # Hiển thị chi tiết lý do (Nút bấm xem thêm)
+                    with st.expander("🔍 Chi tiết Kỹ Thuật", expanded=True):
                         for p in strat['pros']: st.success(f"+ {p}")
                         for c in strat['cons']: st.error(f"- {c}")
 
+                # Cột Cơ Bản (PHẢI)
                 with col_fund:
                     if fund:
                         st.markdown(f"""
                         <div class="rec-card" style="border-left: 5px solid {fund['color']};">
                             <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
                             <div style="font-size: 32px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
+                            <p style="color:gray; font-size:12px">Chất lượng Doanh nghiệp</p>
                         </div>
                         """, unsafe_allow_html=True)
-                        with st.expander("Chi tiết Cơ Bản"):
+                        with st.expander("🔍 Chi tiết Cơ Bản", expanded=True):
                             for d in fund['details']: st.write(f"✅ {d}")
                     else: st.warning("Thiếu dữ liệu cơ bản")
 
-            # --- 3. TABS ---
+            # --- 3. TABS (Biểu đồ, Tin tức...) ---
             t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             with t1: render_pro_chart(df_chart, symbol)
             with t2:
@@ -367,4 +372,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 if res:
                     st.dataframe(pd.DataFrame(res).sort_values("Điểm", ascending=False), use_container_width=True)
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V14.5 - Ultimate Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V14.5 - Ultimate Edition (Full Feature)</div>', unsafe_allow_html=True)
