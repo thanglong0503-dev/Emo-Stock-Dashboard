@@ -19,7 +19,7 @@ USERS_DB = {
     "admin": "admin123",      # Tài khoản của Ngài
     "stock": "stock123",          # Tài khoản cho khách VIP
     "guest": "123456",        # Tài khoản khách thường
-    "guest1": "123456"   # Tài khoản dự phòng
+    "guest1": "123456",   # Tài khoản dự phòng
     "huydang": "123456"   # Tài khoản khách
 }
 
@@ -360,6 +360,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
