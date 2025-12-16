@@ -8,7 +8,25 @@ from datetime import datetime
 
 # --- CẤU HÌNH TRANG WEB ---
 st.set_page_config(layout="wide", page_title="Thăng Long Masterpiece V8.1", page_icon="🐲")
+# 👇👇👇 CHÈN ĐOẠN CODE BẢO MẬT VÀO ĐÂY 👇👇👇
 
+# 1. KIỂM TRA BẢO TRÌ (Nếu muốn đóng cửa thì đổi False thành True)
+MAINTENANCE_MODE = False 
+
+if MAINTENANCE_MODE:
+    st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
+    st.warning("Hệ thống Thăng Long đang được nâng cấp. Vui lòng quay lại sau!")
+    st.stop() # Dừng lại, không chạy code bên dưới nữa
+
+# 2. KIỂM TRA MẬT KHẨU
+if "PASSWORD" in st.secrets: # Chỉ chạy khi đã set mật khẩu trên Cloud
+    pwd_input = st.text_input("🔒 Nhập Mật Khẩu Hoàng Gia:", type="password")
+    
+    if pwd_input != st.secrets["PASSWORD"]:
+        st.info("Hệ thống nội bộ Thăng Long. Xin mời nhập mật khẩu để tiếp tục.")
+        st.stop() # Dừng lại, không hiện Dashboard nếu sai pass
+
+# 👆👆👆 HẾT PHẦN BẢO MẬT 👆👆👆
 # --- CSS: GIAO DIỆN "PROFESSIONAL DARK" (KHÔNG CHÓI) ---
 st.markdown("""
 <style>
@@ -314,3 +332,4 @@ elif mode == "⚡ Máy Quét (Scanner)":
         else: st.error("Không có dữ liệu.")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V8.1 - Masterpiece</div>', unsafe_allow_html=True)
+
