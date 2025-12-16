@@ -8,151 +8,62 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Royal V15", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Royal V15.1", page_icon="🐲")
 
 # ==========================================
-# 🎨 GIAO DIỆN HOÀNG GIA (ROYAL UI - V15)
+# 🎨 GIAO DIỆN HOÀNG GIA (ROYAL UI - V15.1)
 # ==========================================
-# Emo sử dụng CSS Variables để tự động thích nghi Light/Dark Mode
 st.markdown("""
 <style>
-    /* Tùy chỉnh màu Accent chính */
-    :root {
-        --primary-color: #3498db; /* Màu xanh hoàng gia */
-    }
-
-    /* Tiêu đề */
-    h1, h2, h3 {
-        color: var(--text-color) !important; /* Tự động theo theme */
-        font-family: 'Helvetica Neue', sans-serif;
-        font-weight: 700;
-    }
+    :root { --primary-color: #3498db; }
+    h1, h2, h3 { color: var(--text-color) !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
     h1 { margin-bottom: 20px !important; }
-
-    /* Metric (Số liệu to) */
-    [data-testid="stMetricValue"] {
-        font-size: 1.6rem !important;
-        font-weight: 800 !important;
-        color: var(--primary-color) !important;
-    }
-    [data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
-        font-weight: 500;
-        opacity: 0.9;
-    }
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; font-weight: 800 !important; color: var(--primary-color) !important; }
+    [data-testid="stMetricLabel"] { font-size: 1rem !important; font-weight: 500; opacity: 0.9; }
     
-    /* --- MODERN CARD DESIGN (Thiết kế thẻ hiện đại) --- */
     .modern-card {
-        background-color: var(--secondary-background-color); /* Tự động thích nghi nền sáng/tối */
-        border-radius: 16px; /* Bo góc mềm mại */
-        padding: 24px;
-        /* Đổ bóng nhẹ tạo chiều sâu 3D */
+        background-color: var(--secondary-background-color);
+        border-radius: 16px; padding: 24px;
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08); 
-        border: 1px solid rgba(128, 128, 128, 0.1); /* Viền mờ tinh tế */
-        margin-bottom: 20px;
-        transition: all 0.3s ease; /* Hiệu ứng chuyển động mượt */
+        border: 1px solid rgba(128, 128, 128, 0.1); margin-bottom: 20px;
+        transition: all 0.3s ease;
     }
-    /* Hiệu ứng khi di chuột vào thẻ */
-    .modern-card:hover {
-         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-         transform: translateY(-3px); /* Nổi lên nhẹ */
-    }
-
-    /* Tiêu đề phụ trong thẻ */
-    .card-header {
-        font-size: 1.2rem;
-        font-weight: 700;
-        margin-bottom: 15px;
-        color: var(--text-color);
-        display: flex; align-items: center;
-    }
+    .modern-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); transform: translateY(-3px); }
+    .card-header { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; color: var(--text-color); display: flex; align-items: center; }
     .card-header i { margin-right: 10px; }
 
-    /* Recommendation Card (Thẻ Khuyến Nghị) */
-    .rec-card-content {
-        text-align: center;
-    }
-    .rec-action {
-        font-size: 1.5rem; font-weight: 800; margin: 15px 0;
-        /* Chữ tự động đổi màu theo theme, nhưng ưu tiên màu nổi */
-        color: var(--text-color); 
-    }
-
-    /* Score Circle (Vòng tròn điểm số - Gradient bóng bẩy) */
     .score-circle-pro {
         display: inline-flex; justify-content: center; align-items: center;
-        width: 80px; height: 80px;
-        border-radius: 50%;
-        font-size: 32px; font-weight: 900; color: white; /* Số bên trong luôn trắng */
+        width: 80px; height: 80px; border-radius: 50%;
+        font-size: 32px; font-weight: 900; color: white;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
-    /* Màu Gradient cho từng trạng thái */
     .bg-green-gradient { background: linear-gradient(145deg, #10b981, #059669); }
     .bg-red-gradient { background: linear-gradient(145deg, #ef4444, #dc2626); }
     .bg-yellow-gradient { background: linear-gradient(145deg, #f59e0b, #d97706); }
     
-    /* News Item (Tin tức) */
-    .news-item-pro {
-        padding: 12px; border-bottom: 1px solid rgba(128, 128, 128, 0.1);
-        transition: background-color 0.2s;
-    }
-    .news-item-pro:hover {
-        background-color: var(--secondary-background-color);
-        border-radius: 8px;
-    }
-    .news-title-pro {
-        font-weight: 600; font-size: 15px; text-decoration: none;
-        display: block; margin-bottom: 6px;
-        color: var(--text-color) !important;
-    }
-    .news-meta-pro {font-size: 11px; color: gray;}
+    .news-item-pro { padding: 12px; border-bottom: 1px solid rgba(128, 128, 128, 0.1); transition: background-color 0.2s; }
+    .news-item-pro:hover { background-color: var(--secondary-background-color); border-radius: 8px; }
+    .news-title-pro { font-weight: 600; font-size: 15px; text-decoration: none; display: block; margin-bottom: 6px; color: var(--text-color) !important; }
+    .news-meta-pro { font-size: 11px; color: gray; }
     
-    /* Footer */
-    .footer {
-        position: fixed; left: 0; bottom: 0; width: 100%;
-        background: var(--secondary-background-color); /* Thích nghi theme */
-        color: gray; text-align: center; font-size: 12px;
-        padding: 8px; border-top: 1px solid rgba(128,128,128,0.1); z-index: 100;
-    }
-
-    /* Tùy chỉnh Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        border-radius: 8px;
-        background-color: var(--secondary-background-color);
-        border: none;
-        color: var(--text-color);
-        font-weight: 500;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: var(--primary-color) !important;
-        color: white !important;
-        font-weight: 700;
-    }
+    .footer { position: fixed; left: 0; bottom: 0; width: 100%; background: var(--secondary-background-color); color: gray; text-align: center; font-size: 12px; padding: 8px; border-top: 1px solid rgba(128,128,128,0.1); z-index: 100; }
+    
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; }
+    .stTabs [data-baseweb="tab"] { height: 40px; border-radius: 8px; background-color: var(--secondary-background-color); border: none; color: var(--text-color); font-weight: 500; }
+    .stTabs [aria-selected="true"] { background-color: var(--primary-color) !important; color: white !important; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CÁC HÀM HỖ TRỢ UI MỚI ---
 def create_modern_card(title, content_html, icon=""):
     icon_html = f'<i style="color: var(--primary-color)">{icon}</i>' if icon else ""
-    st.markdown(f"""
-    <div class="modern-card">
-        <div class="card-header">{icon_html}{title}</div>
-        <div>{content_html}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div class="modern-card"><div class="card-header">{icon_html}{title}</div><div>{content_html}</div></div>""", unsafe_allow_html=True)
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
 # ==========================================
 MAINTENANCE_MODE = False 
-if MAINTENANCE_MODE:
-    st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
-    st.stop()
+if MAINTENANCE_MODE: st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ"); st.stop()
 if "PASSWORD" in st.secrets:
     pwd = st.sidebar.text_input("🔒 Mật khẩu:", type="password")
     if pwd != st.secrets["PASSWORD"]: st.info("Vui lòng nhập mật khẩu."); st.stop()
@@ -176,7 +87,6 @@ TRANS_MAP = {'Total Revenue': 'Tổng Doanh Thu', 'Operating Revenue': 'Doanh th
 
 # --- SIDEBAR ---
 st.sidebar.title("🎛️ Trạm Điều Khiển")
-# st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**") # Tạm ẩn để giao diện sạch hơn
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật (Fix Lỗi)"):
     st.cache_data.clear()
@@ -240,7 +150,10 @@ def analyze_smart(df):
     high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
     high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
 
-    score = 5; pros, cons = []
+    # --- ĐÃ FIX LỖI TẠI DÒNG NÀY ---
+    score = 5; pros = []; cons = []
+    # -------------------------------
+
     if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
     else: score -=1
     if adx > 25: score += 1; pros.append(f"Trend Mạnh")
@@ -300,20 +213,15 @@ def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
-# --- VẼ CHART (Cập nhật để tương thích Light/Dark) ---
 def plot_gauge(score, action):
-    # Màu chữ tự động theo theme (dùng 'black' cho light, 'white' cho dark - Plotly hơi khó chỉnh auto hoàn toàn, nên tạm để màu trung tính hoặc trắng trên nền tối)
-    # Ở đây Emo giữ nền chart trong suốt, chữ màu trắng để nổi trên nền card tối. 
-    # Nếu muốn hoàn hảo ở Light Mode, cần phức tạp hơn chút. Tạm thời V15 ưu tiên Dark Mode cho Chart.
     fig = go.Figure(go.Indicator(
         mode = "gauge+number", value = score,
-        title = {'text': f"KỸ THUẬT: {action}", 'font': {'size': 18}}, # Để Plotly tự chọn màu chữ tiêu đề
+        title = {'text': f"KỸ THUẬT: {action}", 'font': {'size': 18}},
         gauge = {
             'axis': {'range': [None, 10], 'tickwidth': 1},
             'bar': {'color': "#3498db"}, 'bgcolor': "rgba(128,128,128,0.2)", 'borderwidth': 1, 'bordercolor': "gray",
             'steps': [{'range': [0, 3], 'color': '#ef4444'}, {'range': [3, 7], 'color': '#f59e0b'}, {'range': [7, 10], 'color': '#10b981'}],
             'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': score}}))
-    # Quan trọng: paper_bgcolor='rgba(0,0,0,0)' để trong suốt, font_color=None để tự động
     fig.update_layout(height=250, margin=dict(l=20,r=20,t=40,b=20), paper_bgcolor='rgba(0,0,0,0)') 
     return fig
 
@@ -321,7 +229,6 @@ def plot_radar(scores):
     categories = list(scores.keys()); values = list(scores.values())
     categories = [*categories, categories[0]]; values = [*values, values[0]]
     fig = go.Figure(data=go.Scatterpolar(r=values, theta=categories, fill='toself', name='Điểm cơ bản', line_color='#3498db'))
-    # Để font color tự động
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 10], color='gray')), showlegend=False, height=250, margin=dict(l=40,r=40,t=30,b=20), paper_bgcolor='rgba(0,0,0,0)')
     return fig
 
@@ -333,7 +240,6 @@ def plot_holders(df_holders):
             try: values.append(float(v.strip('%')))
             except: values.append(0)
         fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
-        # Để font color tự động
         fig.update_layout(height=300, margin=dict(l=0,r=0,t=30,b=0), paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
         return fig
     except: return None
@@ -352,7 +258,6 @@ def render_pro_chart(df, symbol):
         fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
         fig.add_trace(go.Bar(x=df.index, y=df['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
-    # QUAN TRỌNG: template=None để Plotly tự theo theme của Streamlit
     fig.update_layout(height=700, template=None, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False, color='gray'), yaxis=dict(showgrid=True, gridcolor='rgba(128,128,128,0.2)', color='gray'))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True})
@@ -378,32 +283,17 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             fund_scores = analyze_fundamental_score(info)
             
             if tech_res:
-                # --- GIAO DIỆN CARD HIỆN ĐẠI ---
                 g1, g2 = st.columns(2)
                 with g1:
-                    # Nội dung Card Kỹ thuật
                     gauge_chart = plot_gauge(tech_res['score'], tech_res['action'])
-                    metrics_html = f"""
-                    <div style="display: flex; justify-content: space-around; margin-top: 15px; font-weight: 600;">
-                        <div>🎯 Giá: {tech_res['entry']:,.0f}</div>
-                        <div>🛑 Cắt: {tech_res['stop']:,.0f}</div>
-                        <div>🚀 Tiêu: {tech_res['target']:,.0f}</div>
-                    </div>
-                    """
-                    # Dùng hàm tạo card
+                    metrics_html = f"""<div style="display: flex; justify-content: space-around; margin-top: 15px; font-weight: 600;"><div>🎯 Giá: {tech_res['entry']:,.0f}</div><div>🛑 Cắt: {tech_res['stop']:,.0f}</div><div>🚀 Tiêu: {tech_res['target']:,.0f}</div></div>"""
                     create_modern_card("Sức Mạnh Kỹ Thuật", st.plotly_chart(gauge_chart, use_container_width=True, output_format="div") + metrics_html, icon="🔭")
 
                 with g2:
-                    # Nội dung Card Cơ bản
                     radar_chart = plot_radar(fund_scores)
-                    fund_metrics_html = f"""
-                    <div style="text-align: center; margin-top: 15px; color: gray; font-size: 0.9rem;">
-                        P/E: {info.get('trailingPE','N/A')} | EPS: {info.get('trailingEps','N/A')}
-                    </div>
-                    """
+                    fund_metrics_html = f"""<div style="text-align: center; margin-top: 15px; color: gray; font-size: 0.9rem;">P/E: {info.get('trailingPE','N/A')} | EPS: {info.get('trailingEps','N/A')}</div>"""
                     create_modern_card("Sức Khỏe Doanh Nghiệp", st.plotly_chart(radar_chart, use_container_width=True, output_format="div") + fund_metrics_html, icon="🏢")
 
-                # --- CHI TIẾT KHUYẾN NGHỊ ---
                 with st.expander("Xem chi tiết lý do khuyến nghị"):
                     k1, k2 = st.columns(2)
                     with k1: 
@@ -413,7 +303,6 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                         st.subheader("❌ Điểm Trừ")
                         for c in tech_res['cons']: st.error(c) if c else st.write("Không có")
 
-            # --- TABS ---
             t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "👥 Cổ Đông"])
             with t1: render_pro_chart(df_chart, symbol)
             with t2:
@@ -432,13 +321,9 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     if pie_fig: st.plotly_chart(pie_fig, use_container_width=True)
                     else: st.dataframe(holders, use_container_width=True)
                 with c2:
-                    create_modern_card("Thông Tin Khác", f"""
-                    <div><b>Ngành:</b> {info.get('industry', 'N/A')}</div>
-                    <div style="margin-top: 10px;"><b>Nhân sự:</b> {safe_fmt(info.get('fullTimeEmployees', 'N/A'))} người</div>
-                    """, icon="ℹ️")
+                    create_modern_card("Thông Tin Khác", f"""<div><b>Ngành:</b> {info.get('industry', 'N/A')}</div><div style="margin-top: 10px;"><b>Nhân sự:</b> {safe_fmt(info.get('fullTimeEmployees', 'N/A'))} người</div>""", icon="ℹ️")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    # --- GIỮ NGUYÊN TÍNH NĂNG CŨ, CHỈ NÂNG CẤP GIAO DIỆN BẢNG ---
     st.title("📊 Bảng Giá & Máy Quét")
     st.caption("Công cụ quét tín hiệu toàn thị trường.")
     if st.button("🔄 Cập nhật dữ liệu toàn thị trường"): st.cache_data.clear(); st.rerun()
@@ -446,7 +331,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     
-    # Hàm vẽ bảng màu sắc đẹp hơn
     def style_dataframe(df):
         def color_act(val):
             if 'MUA MẠNH' in val: return 'color: #10b981; font-weight: 800;'
@@ -456,10 +340,8 @@ elif mode == "📊 Bảng Giá & Máy Quét":
         def highlight_score(val):
             color = '#ef4444' if val <= 3 else '#f59e0b' if val < 8 else '#10b981'
             return f'font-weight: bold; color: {color}'
-        
         return df.style.map(color_act, subset=['Hành động']).map(highlight_score, subset=['Điểm']).format({"Giá TT": "{:,.0f}"})
 
-    # TAB TỰ NHẬP
     with tabs[0]:
         st.info("Nhập danh sách mã cần quét (cách nhau dấu phẩy). Ví dụ: HPG, VCB, FPT")
         inp = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, DIG, CEO, DXG", height=80)
@@ -481,7 +363,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 st.dataframe(style_dataframe(df_res), use_container_width=True, height=500)
             else: st.error("Không tìm thấy dữ liệu phù hợp.")
 
-    # CÁC TAB NHÓM NGÀNH
     for tab, name in zip(tabs[1:], list(STOCK_GROUPS.keys())):
         with tab:
             st.write(f"### 📡 Tín hiệu nhóm: {name}")
@@ -500,8 +381,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 if res:
                     df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
                     st.dataframe(style_dataframe(df_res), use_container_width=True, height=500)
-                    if df_res.iloc[0]['Điểm'] >= 8: 
-                        st.balloons()
-                        st.success(f"💎 SIÊU CỔ PHIẾU DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
+                    if df_res.iloc[0]['Điểm'] >= 8: st.balloons(); st.success(f"💎 SIÊU CỔ PHIẾU DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15 - Royal UI Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.1 - Stable Royal Edition</div>', unsafe_allow_html=True)
