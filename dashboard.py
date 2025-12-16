@@ -8,59 +8,27 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long V15.4 Stable", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Realtime V13.2", page_icon="⚡")
 
 # ==========================================
-# 🎨 GIAO DIỆN ROYAL UI (CSS GLOBAL)
+# 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
 # ==========================================
-st.markdown("""
-<style>
-    /* Chỉnh màu chủ đạo */
-    :root { --primary-color: #3498db; }
-    
-    /* Làm đẹp các container (giả lập Card) */
-    [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
-        padding: 15px;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-    }
+MAINTENANCE_MODE = False 
 
-    /* Tiêu đề */
-    h1, h2, h3 { color: #64b5f6 !important; }
-    
-    /* Metric số to */
-    [data-testid="stMetricValue"] {
-        font-size: 1.4rem !important;
-        color: #3498db !important;
-        font-weight: 700 !important;
-    }
-    
-    /* Tab đẹp hơn */
-    .stTabs [data-baseweb="tab-list"] { gap: 5px; }
-    .stTabs [data-baseweb="tab"] {
-        height: 40px; border-radius: 5px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border: none; color: white;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #3498db !important;
-        color: white !important;
-    }
-    
-    .news-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .news-title { font-weight: bold; color: #90caf9; text-decoration: none; }
-    .footer { position: fixed; left: 0; bottom: 0; width: 100%; background: #0e1117; color: gray; text-align: center; padding: 5px; font-size: 12px; border-top: 1px solid #333; }
-</style>
-""", unsafe_allow_html=True)
+if MAINTENANCE_MODE:
+    st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
+    st.warning("Hệ thống Thăng Long đang được nâng cấp. Vui lòng quay lại sau!")
+    st.stop()
 
-# ==========================================
-# 🛡️ DATA & LOGIC
-# ==========================================
 if "PASSWORD" in st.secrets:
     pwd = st.sidebar.text_input("🔒 Mật khẩu:", type="password")
-    if pwd != st.secrets["PASSWORD"]: st.stop()
+    if pwd != st.secrets["PASSWORD"]:
+        st.info("Vui lòng nhập mật khẩu.")
+        st.stop()
 
+# ==========================================
+# 📂 KHO MÃ CỔ PHIẾU
+# ==========================================
 STOCK_GROUPS = {
     "🏆 VN30": "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,POW,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE",
     "🏦 Ngân Hàng": "VCB,BID,CTG,TCB,VPB,MBB,ACB,STB,HDB,VIB,TPB,SHB,EIB,MSB,OCB,LPB,SSB",
@@ -68,230 +36,270 @@ STOCK_GROUPS = {
     "🏗️ Thép": "HPG,HSG,NKG,VSG,TLH,POM",
     "🏠 BĐS": "VHM,VIC,VRE,NVL,PDR,DIG,CEO,DXG,KDH,NLG,KBC,IDC,SZC",
     "🛢️ Dầu Khí": "GAS,PLX,PVD,PVS,PVC,BSR,OIL,PVT",
-    "🛒 Bán Lẻ": "MWG,PNJ,DGW,FRT,PET,MSN"
+    "🐟 Thủy Sản": "VHC,ANV,IDI,CMX,FMC",
+    "🛒 Bán Lẻ": "MWG,PNJ,DGW,FRT,PET,MSN",
+    "⚡ Điện": "POW,REE,NT2,PC1,GEG,HDG,GEX"
 }
 
+# ==========================================
+# 🎨 GIAO DIỆN PRO
+# ==========================================
+st.markdown("""
+<style>
+    h1, h2, h3 {color: #64b5f6 !important;}
+    [data-testid="stMetricValue"] {font-size: 1.4rem !important; font-weight: bold !important;}
+    [data-testid="stMetricLabel"] {font-size: 1rem !important; opacity: 0.8;}
+    .rec-card {background-color: #1f2937; border: 1px solid #374151; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px;}
+    .rec-card h3 {color: white !important;} 
+    .score-circle {display: inline-block; width: 60px; height: 60px; line-height: 60px; border-radius: 50%; font-size: 24px; font-weight: bold; color: white; margin-bottom: 10px;}
+    .green-zone {background-color: #10b981; box-shadow: 0 0 15px #10b981;}
+    .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
+    .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
+    .news-item {padding: 10px; border-bottom: 1px solid #444; margin-bottom: 10px;}
+    .news-item:hover {background-color: rgba(100, 181, 246, 0.1); border-radius: 5px;}
+    .news-title {font-weight: bold; font-size: 16px; text-decoration: none; display: block; margin-bottom: 5px; color: inherit !important;}
+    .news-meta {font-size: 12px; color: #888;}
+    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #6b7280; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151; z-index: 100;}
+</style>
+""", unsafe_allow_html=True)
+
+TRANS_MAP = {
+    'Total Revenue': '1. Tổng Doanh Thu', 'Operating Revenue': '   - Doanh thu HĐ',
+    'Cost Of Revenue': '2. Giá Vốn Hàng Bán', 'Gross Profit': '3. Lợi Nhuận Gộp',
+    'Operating Expense': '4. Chi Phí Hoạt Động', 'Operating Income': '5. Lợi Nhuận Từ HĐKD',
+    'Net Income': '9. Lợi Nhuận Sau Thuế', 'EBITDA': '10. EBITDA', 'Basic EPS': '11. EPS Cơ Bản',
+    'Total Assets': 'A. TỔNG TÀI SẢN', 'Current Assets': '   I. Tài sản Ngắn hạn',
+    'Cash And Cash Equivalents': '      1. Tiền & Tương đương tiền', 'Inventory': '      2. Hàng Tồn kho',
+    'Total Liabilities Net Minority Interest': 'B. TỔNG NỢ', 'Stockholders Equity': 'C. VỐN CHỦ SỞ HỮU',
+    'Operating Cash Flow': '1. Dòng Tiền KD', 'Investing Cash Flow': '2. Dòng Tiền Đầu Tư',
+    'Financing Cash Flow': '3. Dòng Tiền Tài Chính', 'Free Cash Flow': '-> Dòng Tiền Tự Do'
+}
+
+# --- SIDEBAR ---
 st.sidebar.title("🎛️ Trạm Điều Khiển")
+st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**")
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
-if st.sidebar.button("🔄 Cập Nhật Dữ Liệu"):
+
+# --- NÚT CLEAR CACHE (NEW V13.2) ---
+if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"):
     st.cache_data.clear()
     st.rerun()
 
-# --- LOAD DATA ---
+# ==========================================
+# 🧠 XỬ LÝ DỮ LIỆU
+# ==========================================
+
+@st.cache_data(ttl=300) # Mặc định lưu 5 phút, bấm nút Refresh sẽ xóa cái này
+def load_news_google(symbol):
+    try:
+        rss_url = f"https://news.google.com/rss/search?q=cổ+phiếu+{symbol}&hl=vi&gl=VN&ceid=VN:vi"
+        feed = feedparser.parse(rss_url)
+        clean_news = []
+        for entry in feed.entries[:10]:
+            clean_news.append({'title': entry.title, 'link': entry.link, 'published': entry.get('published', ''), 'source': entry.get('source', {}).get('title', 'Google News')})
+        return clean_news
+    except: return []
+
 @st.cache_data(ttl=300)
-def load_data_v15(ticker, time):
+def load_data_v13(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
     try:
-        df = stock.history(period="1y")
-        if len(df) > 50:
-            df.ta.sma(length=20, append=True); df.ta.sma(length=50, append=True)
-            df.ta.rsi(length=14, append=True); df.ta.macd(append=True)
-            df.ta.adx(length=14, append=True); df.ta.atr(length=14, append=True)
-    except: df = pd.DataFrame()
-    
+        df_calc = stock.history(period="1y")
+        if len(df_calc) > 52:
+            df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
+            df_calc.ta.rsi(length=14, append=True); df_calc.ta.macd(append=True)
+            df_calc.ta.adx(length=14, append=True); df_calc.ta.atr(length=14, append=True)
+    except: df_calc = pd.DataFrame()
+
     try:
-        df_chart = stock.history(period=time, interval="15m" if time in ["1d","5d"] else "1d")
+        interval = "15m" if time in ["1d", "5d"] else "1d"
+        df_chart = stock.history(period=time, interval=interval)
         if not df_chart.empty:
-            df_chart.ta.sma(length=20, append=True); df_chart.ta.bbands(length=20, std=2, append=True)
-            df_chart.ta.rsi(length=14, append=True); df_chart.ta.macd(append=True)
+            df_chart.ta.sma(length=20, append=True)
+            df_chart.ta.bbands(length=20, std=2, append=True)
+            df_chart.ta.rsi(length=14, append=True)
+            df_chart.ta.macd(append=True)
     except: df_chart = pd.DataFrame()
 
-    try: info = stock.info
+    try: info = stock.info; 
     except: info = {}
-    try: fin = stock.financials
+    try: fin = stock.financials; 
     except: fin = pd.DataFrame()
-    try: bal = stock.balance_sheet
+    try: bal = stock.balance_sheet; 
     except: bal = pd.DataFrame()
-    try: holders = stock.major_holders
+    try: cash = stock.cashflow; 
+    except: cash = pd.DataFrame()
+    try: holders = stock.major_holders; 
     except: holders = pd.DataFrame()
     
-    # News
-    try:
-        rss = f"https://news.google.com/rss/search?q=cổ+phiếu+{ticker}&hl=vi&gl=VN&ceid=VN:vi"
-        feed = feedparser.parse(rss)
-        news = [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
-    except: news = []
-    
-    return df, df_chart, info, fin, bal, holders, news
+    news_items = load_news_google(ticker)
+    return df_calc, df_chart, info, fin, bal, cash, holders, news_items
 
-# --- ANALYZE ---
-def analyze_tech(df):
-    if df.empty or len(df)<50: return None
+def analyze_smart(df):
+    if df.empty or len(df) < 52: return None
     now = df.iloc[-1]
-    # Khởi tạo list rỗng chuẩn Python
-    pros = []
-    cons = []
-    score = 5
+    close = now['Close']; ma20 = now['SMA_20']; ma50 = now['SMA_50']
+    rsi = now['RSI_14']; macd = now['MACD_12_26_9']; macds = now['MACDs_12_26_9']
+    adx = now['ADX_14']; atr = now['ATRr_14']
+    vol_now = now['Volume']; vol_avg = df['Volume'].rolling(20).mean().iloc[-1]
+    high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
+    high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
+
+    score = 0; pros, cons = [], []
+    if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
+    if adx > 25: score += 1; pros.append(f"ADX Mạnh ({adx:.0f})")
+    if rsi < 30: score += 3; pros.append("RSI Quá bán")
+    elif rsi > 70: score -= 2; cons.append("RSI Quá mua")
+    if macd > macds: score += 1; pros.append("MACD cắt lên")
+    else: score -= 1; cons.append("MACD cắt xuống")
+    if close > tenkan and close > kijun: score += 1; pros.append("Ichimoku Tốt")
+    if vol_now > vol_avg*1.2 and close > df.iloc[-2]['Close']: score += 2; pros.append("Tiền vào mạnh")
     
-    # Logic
-    if now['Close'] > now.get('SMA_20', 0): score += 2; pros.append("Giá > MA20 (Tăng)")
-    else: score -= 1
-    if now.get('RSI_14', 50) < 30: score += 2; pros.append("RSI Quá bán (Hồi)")
-    elif now.get('RSI_14', 50) > 70: score -= 1; cons.append("RSI Quá mua")
-    if now.get('MACD_12_26_9', 0) > now.get('MACDs_12_26_9', 0): score += 1; pros.append("MACD Tốt")
-    else: score -= 1; cons.append("MACD Xấu")
+    final_score = max(0, min(10, 5 + score))
+    action, zone = "QUAN SÁT", "yellow-zone"
+    if final_score >= 8: action, zone = "MUA MẠNH", "green-zone"
+    elif final_score >= 6: action, zone = "MUA THĂM DÒ", "green-zone"
+    elif final_score <= 3: action, zone = "BÁN / CẮT LỖ", "red-zone"
     
-    final_score = max(0, min(10, score))
-    action = "MUA MẠNH" if final_score >= 8 else "MUA THĂM DÒ" if final_score >= 6 else "QUAN SÁT" if final_score >= 4 else "BÁN"
-    
-    return {'score': final_score, 'action': action, 'pros': pros, 'cons': cons, 
-            'entry': now['Close'], 'target': now['Close']*1.1, 'stop': now['Close']*0.95}
+    return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
 
-def analyze_fund(info):
-    scores = {'Định Giá': 5, 'Sinh Lời': 5, 'Tăng Trưởng': 5, 'Sức Khỏe': 5, 'Hiệu Quả': 5}
-    try:
-        pe = info.get('trailingPE', 0)
-        if pe is None: pe = 0
-        if 0 < pe < 15: scores['Định Giá'] = 8
-        elif pe > 25: scores['Định Giá'] = 3
-        
-        roe = info.get('returnOnEquity', 0)
-        if roe is None: roe = 0
-        if roe > 0.15: scores['Sinh Lời'] = 8
-    except: pass
-    return scores
+def clean_table(df):
+    if df.empty: return pd.DataFrame()
+    valid = [i for i in df.index if i in TRANS_MAP]
+    if not valid: return df
+    df_new = df.loc[valid].rename(index=TRANS_MAP)
+    for col in df_new.columns:
+        for idx in df_new.index:
+            if "EPS" not in idx and isinstance(df_new.loc[idx, col], (int, float)): df_new.loc[idx, col] = df_new.loc[idx, col] / 1e9
+    return df_new
 
-# --- CHARTS ---
-def plot_gauge(score, action):
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number", value = score,
-        title = {'text': action, 'font': {'size': 20, 'color': '#3498db'}},
-        gauge = {'axis': {'range': [None, 10]}, 'bar': {'color': "#3498db"},
-                 'steps': [{'range': [0,3], 'color': '#ef4444'}, {'range': [3,7], 'color': '#f59e0b'}, {'range': [7,10], 'color': '#10b981'}]}
-    ))
-    fig.update_layout(height=250, margin=dict(l=20,r=20,t=40,b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-    return fig
+def safe_fmt(val):
+    try: return f"{int(val):,}"
+    except: return "N/A"
 
-def plot_radar(scores):
-    fig = go.Figure(data=go.Scatterpolar(
-        r=list(scores.values()) + [list(scores.values())[0]],
-        theta=list(scores.keys()) + [list(scores.keys())[0]],
-        fill='toself', line_color='#29b6f6'
-    ))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 10])), showlegend=False, height=250, margin=dict(l=40,r=40,t=20,b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': 'white'})
-    return fig
-
-def render_main_chart(df):
-    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá')])
-    if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='orange'), name='MA20'))
-    fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0), hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+def render_pro_chart(df, symbol):
+    row_h = [0.6, 0.2, 0.2]
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
+    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
+    if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+    if 'SMA_50' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
+    if 'BBU_20_2.0' in df.columns:
+            fig.add_trace(go.Scatter(x=df.index, y=df['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
+    colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df.iterrows()]
+    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
+    if 'MACD_12_26_9' in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
+        fig.add_trace(go.Bar(x=df.index, y=df['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
+    fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
+    st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True})
 
 # ==========================================
-# 🖥️ MAIN UI
+# 🖥️ GIAO DIỆN CHÍNH
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
-    c1, c2 = st.columns([3, 1])
-    with c1: symbol = st.text_input("Mã CP:", "HPG").upper()
-    with c2: 
-        st.write(""); 
-        if st.button("🚀 Phân Tích"): st.rerun()
-    
-    period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y"], index=4)
+    st.header("🔮 Phân Tích Chuyên Sâu")
+    col_input, col_ref = st.columns([3, 1])
+    with col_input:
+        symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
+    with col_ref:
+        if st.button("🔄 Cập nhật giá"): st.cache_data.clear(); st.rerun()
 
+    period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
+    
     if symbol:
-        df, df_chart, info, fin, bal, holders, news = load_data_v15(symbol, period)
-        
+        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v13(symbol, period)
         if not df_chart.empty:
             st.title(f"💎 {info.get('longName', symbol)}")
-            
-            # --- PHẦN DASHBOARD (ĐÃ SỬA LỖI) ---
-            tech = analyze_tech(df)
-            fund = analyze_fund(info)
-            
-            if tech:
-                col1, col2 = st.columns(2)
-                
-                # Card 1: Kỹ Thuật
-                with col1:
-                    st.subheader("🔭 Kỹ Thuật")
-                    st.plotly_chart(plot_gauge(tech['score'], tech['action']), use_container_width=True)
+            strat = analyze_smart(df_calc)
+            if strat:
+                c1, c2 = st.columns([1, 2])
+                with c1: st.markdown(f'<div class="rec-card"><div class="score-circle {strat["zone"]}">{strat["score"]}</div><h3>{strat["action"]}</h3></div>', unsafe_allow_html=True)
+                with c2:
+                    k1, k2 = st.columns(2)
+                    with k1: 
+                        for p in strat['pros']: st.success(f"+ {p}")
+                    with k2: 
+                        for c in strat['cons']: st.error(f"- {c}")
+                    st.divider()
                     m1, m2, m3 = st.columns(3)
-                    m1.metric("Giá", f"{tech['entry']:,.0f}")
-                    m2.metric("Cắt Lỗ", f"{tech['stop']:,.0f}")
-                    m3.metric("Mục Tiêu", f"{tech['target']:,.0f}")
-                    
-                    with st.expander("Chi tiết tín hiệu"):
-                        for p in tech['pros']: st.success(p)
-                        for c in tech['cons']: st.error(c)
+                    m1.metric("Giá Hiện Tại", f"{strat['entry']:,.0f}")
+                    m2.metric("Cắt Lỗ (Gợi ý)", f"{strat['stop']:,.0f}")
+                    m3.metric("Mục Tiêu (Gợi ý)", f"{strat['target']:,.0f}")
 
-                # Card 2: Cơ Bản
-                with col2:
-                    st.subheader("🏢 Sức Khỏe DN")
-                    st.plotly_chart(plot_radar(fund), use_container_width=True)
-                    st.info(f"P/E: {info.get('trailingPE', 'N/A')} | EPS: {info.get('trailingEps', 'N/A')}")
-
-            # --- TABS ---
-            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "👥 Cổ Đông"])
-            
-            with t1: render_main_chart(df_chart)
-            
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ Kỹ Thuật", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
+            with t1: render_pro_chart(df_chart, symbol)
             with t2:
-                for n in news:
-                    st.markdown(f"<div class='news-item'><a class='news-title' href='{n['link']}' target='_blank'>{n['title']}</a><div class='news-meta'>{n['published']}</div></div>", unsafe_allow_html=True)
-            
+                for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]} | 🔗 {item["source"]}</div></div>', unsafe_allow_html=True)
             with t3:
                 c_left, c_right = st.columns(2)
-                with c_left: st.write("Kinh Doanh"); st.dataframe(fin, use_container_width=True)
-                with c_right: st.write("Cân Đối"); st.dataframe(bal, use_container_width=True)
-                
+                with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True); st.subheader("Dòng Tiền"); st.dataframe(clean_table(cash).style.format("{:,.2f}"), use_container_width=True)
+                with c_right: st.subheader("Cân Đối Kế Toán"); st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
             with t4:
-                c_left, c_right = st.columns([2, 1])
-                with c_left:
-                    if not holders.empty:
-                        # Pie chart holders
-                        try:
-                            labels = holders[1].tolist(); values = [float(v.strip('%')) for v in holders[0].tolist()]
-                            fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
-                            st.plotly_chart(fig, use_container_width=True)
-                        except: st.dataframe(holders)
-                with c_right:
-                    st.write(info.get('longBusinessSummary', ''))
+                c1, c2 = st.columns([2, 1])
+                with c1: st.write(info.get('longBusinessSummary', ''))
+                with c2:
+                    st.info(f"Ngành: {info.get('industry', 'N/A')}")
+                    st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
+                    try: st.dataframe(holders, use_container_width=True)
+                    except: pass
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Bảng Giá & Máy Quét")
+    st.title("📊 Bảng Giá & Máy Quét Đa Năng")
+    if st.button("🔄 Cập nhật dữ liệu toàn thị trường"): st.cache_data.clear(); st.rerun()
     
-    tabs = st.tabs(["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys()))
+    all_tabs = ["🛠️ Tự Nhập (Manual)"] + list(STOCK_GROUPS.keys())
+    tabs = st.tabs(all_tabs)
     
-    # Tab Tự Nhập
     with tabs[0]:
-        inp = st.text_area("Nhập mã (VD: HPG, VCB):", "HPG, VCB, SSI, VND, FPT")
-        if st.button("🚀 Quét"):
+        st.caption("Nhập danh sách mã cổ phiếu bất kỳ để quét (cách nhau dấu phẩy).")
+        inp = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, DIG", height=100)
+        if st.button("🚀 QUÉT DANH SÁCH TỰ NHẬP"):
             ticks = [x.strip().upper() for x in inp.split(',') if x.strip()]
+            if len(ticks) > 30: ticks = ticks[:30]; st.warning("⚠️ Chỉ quét 30 mã đầu tiên.")
             res = []
-            bar = st.progress(0)
+            bar = st.progress(0, "Đang xử lý...")
             for i, t in enumerate(ticks):
-                bar.progress((i+1)/len(ticks))
+                bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                 try:
-                    df, _, _, _, _, _, _ = load_data_v15(t, "1y")
-                    s = analyze_tech(df)
-                    if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": s['entry']})
+                    df, _, _, _, _, _, _, _ = load_data_v13(t, "1y")
+                    s = analyze_smart(df)
+                    if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": f"{s['entry']:,.0f}"})
                 except: pass
             bar.empty()
             if res:
-                df_res = pd.DataFrame(res).sort_values("Điểm", ascending=False)
-                # Tô màu
-                def color_row(row):
-                    return ['color: #10b981; font-weight: bold' if row['Điểm']>=8 else 'color: #ef4444' if row['Điểm']<=3 else '' for _ in row]
-                st.dataframe(df_res.style.apply(color_row, axis=1), use_container_width=True)
+                df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
+                def color_act(val):
+                    if 'MUA' in val: return 'color: #10b981; font-weight: bold'
+                    if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
+                    return 'color: #f59e0b'
+                st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
+            else: st.error("Không tìm thấy dữ liệu.")
 
-    # Các Tab Ngành
-    for i, (name, list_stocks) in enumerate(STOCK_GROUPS.items()):
-        with tabs[i+1]:
-            if st.button(f"Quét {name}", key=name):
-                ticks = list_stocks.split(',')
+    for tab, name in zip(tabs[1:], list(STOCK_GROUPS.keys())):
+        with tab:
+            if st.button(f"🚀 Quét Nhóm {name}", key=name):
+                ticks = STOCK_GROUPS[name].split(',')
                 res = []
-                bar = st.progress(0)
-                for j, t in enumerate(ticks):
-                    bar.progress((j+1)/len(ticks))
+                bar = st.progress(0, f"Đang quét {name}...")
+                for i, t in enumerate(ticks):
+                    bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                     try:
-                        df, _, _, _, _, _, _ = load_data_v15(t, "1y")
-                        s = analyze_tech(df)
-                        if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": s['entry']})
+                        df, _, _, _, _, _, _, _ = load_data_v13(t, "1y")
+                        s = analyze_smart(df)
+                        if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": f"{s['entry']:,.0f}"})
                     except: pass
                 bar.empty()
                 if res:
-                    st.dataframe(pd.DataFrame(res).sort_values("Điểm", ascending=False), use_container_width=True)
+                    df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
+                    def color_act(val):
+                        if 'MUA' in val: return 'color: #10b981; font-weight: bold'
+                        if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
+                        return 'color: #f59e0b'
+                    st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
+                    if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.4 - Final Stable</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
