@@ -8,7 +8,7 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Realtime V13.2", page_icon="⚡")
+st.set_page_config(layout="wide", page_title="Stock V13.2", page_icon="⚡")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -76,8 +76,8 @@ TRANS_MAP = {
 }
 
 # --- SIDEBAR ---
-st.sidebar.title("🎛️ Trạm Điều Khiển")
-st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**")
+st.sidebar.title("🎛️ SETTING")
+st.sidebar.success("👑 **Developed: THANG LONG**")
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
 
 # --- NÚT CLEAR CACHE (NEW V13.2) ---
@@ -303,3 +303,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
