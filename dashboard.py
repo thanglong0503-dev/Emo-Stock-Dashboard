@@ -19,44 +19,27 @@ st.markdown("""
     h1, h2, h3 { color: var(--text-color) !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
     h1 { margin-bottom: 20px !important; }
     [data-testid="stMetricValue"] { font-size: 1.6rem !important; font-weight: 800 !important; color: var(--primary-color) !important; }
-    [data-testid="stMetricLabel"] { font-size: 1rem !important; font-weight: 500; opacity: 0.9; }
     
     .modern-card {
         background-color: var(--secondary-background-color);
         border-radius: 16px; padding: 24px;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08); 
-        border: 1px solid rgba(128, 128, 128, 0.1); margin-bottom: 20px;
-        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+        border: 1px solid rgba(128, 128, 128, 0.2); margin-bottom: 20px;
     }
-    .modern-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); transform: translateY(-3px); }
     .card-header { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; color: var(--text-color); display: flex; align-items: center; }
     .card-header i { margin-right: 10px; }
-
-    .score-circle-pro {
-        display: inline-flex; justify-content: center; align-items: center;
-        width: 80px; height: 80px; border-radius: 50%;
-        font-size: 32px; font-weight: 900; color: white;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    .bg-green-gradient { background: linear-gradient(145deg, #10b981, #059669); }
-    .bg-red-gradient { background: linear-gradient(145deg, #ef4444, #dc2626); }
-    .bg-yellow-gradient { background: linear-gradient(145deg, #f59e0b, #d97706); }
     
-    .news-item-pro { padding: 12px; border-bottom: 1px solid rgba(128, 128, 128, 0.1); transition: background-color 0.2s; }
-    .news-item-pro:hover { background-color: var(--secondary-background-color); border-radius: 8px; }
+    .news-item-pro { padding: 12px; border-bottom: 1px solid rgba(128, 128, 128, 0.1); }
+    .news-item-pro:hover { background-color: rgba(128, 128, 128, 0.05); border-radius: 8px; }
     .news-title-pro { font-weight: 600; font-size: 15px; text-decoration: none; display: block; margin-bottom: 6px; color: var(--text-color) !important; }
     .news-meta-pro { font-size: 11px; color: gray; }
     
     .footer { position: fixed; left: 0; bottom: 0; width: 100%; background: var(--secondary-background-color); color: gray; text-align: center; font-size: 12px; padding: 8px; border-top: 1px solid rgba(128,128,128,0.1); z-index: 100; }
-    
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; }
-    .stTabs [data-baseweb="tab"] { height: 40px; border-radius: 8px; background-color: var(--secondary-background-color); border: none; color: var(--text-color); font-weight: 500; }
-    .stTabs [aria-selected="true"] { background-color: var(--primary-color) !important; color: white !important; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
 def create_modern_card(title, content_html, icon=""):
-    icon_html = f'<i style="color: var(--primary-color)">{icon}</i>' if icon else ""
+    icon_html = f'<i style="color: #3498db">{icon}</i>' if icon else ""
     st.markdown(f"""<div class="modern-card"><div class="card-header">{icon_html}{title}</div><div>{content_html}</div></div>""", unsafe_allow_html=True)
 
 # ==========================================
@@ -78,17 +61,15 @@ STOCK_GROUPS = {
     "🏗️ Thép": "HPG,HSG,NKG,VSG,TLH,POM",
     "🏠 BĐS": "VHM,VIC,VRE,NVL,PDR,DIG,CEO,DXG,KDH,NLG,KBC,IDC,SZC",
     "🛢️ Dầu Khí": "GAS,PLX,PVD,PVS,PVC,BSR,OIL,PVT",
-    "🐟 Thủy Sản": "VHC,ANV,IDI,CMX,FMC",
-    "🛒 Bán Lẻ": "MWG,PNJ,DGW,FRT,PET,MSN",
-    "⚡ Điện": "POW,REE,NT2,PC1,GEG,HDG,GEX"
+    "🛒 Bán Lẻ": "MWG,PNJ,DGW,FRT,PET,MSN"
 }
 
-TRANS_MAP = {'Total Revenue': 'Tổng Doanh Thu', 'Operating Revenue': 'Doanh thu HĐ', 'Cost Of Revenue': 'Giá Vốn Hàng Bán', 'Gross Profit': 'Lợi Nhuận Gộp', 'Operating Expense': 'Chi Phí Hoạt Động', 'Operating Income': 'Lợi Nhuận Từ HĐKD', 'Net Income': 'Lợi Nhuận Sau Thuế', 'EBITDA': 'EBITDA', 'Basic EPS': 'EPS Cơ Bản', 'Total Assets': 'TỔNG TÀI SẢN', 'Current Assets': 'Tài sản Ngắn hạn', 'Cash And Cash Equivalents': 'Tiền & Tương đương tiền', 'Inventory': 'Hàng Tồn kho', 'Total Liabilities Net Minority Interest': 'TỔNG NỢ', 'Stockholders Equity': 'VỐN CHỦ SỞ HỮU', 'Operating Cash Flow': 'Dòng Tiền KD', 'Investing Cash Flow': 'Dòng Tiền Đầu Tư', 'Financing Cash Flow': 'Dòng Tiền Tài Chính', 'Free Cash Flow': 'Dòng Tiền Tự Do'}
+TRANS_MAP = {'Total Revenue': 'Tổng Doanh Thu', 'Net Income': 'LN Sau Thuế', 'Total Assets': 'Tổng Tài Sản', 'Total Liabilities Net Minority Interest': 'Tổng Nợ', 'Stockholders Equity': 'Vốn Chủ Sở Hữu'}
 
 # --- SIDEBAR ---
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
-if st.sidebar.button("🔄 Xóa Cache & Cập Nhật (Fix Lỗi)"):
+if st.sidebar.button("🔄 Fix Lỗi & Cập Nhật"):
     st.cache_data.clear()
     st.rerun()
 
@@ -132,13 +113,11 @@ def load_data_full(ticker, time):
     except: fin = pd.DataFrame()
     try: bal = stock.balance_sheet; 
     except: bal = pd.DataFrame()
-    try: cash = stock.cashflow; 
-    except: cash = pd.DataFrame()
     try: holders = stock.major_holders; 
     except: holders = pd.DataFrame()
     
     news_items = load_news_google(ticker)
-    return df_calc, df_chart, info, fin, bal, cash, holders, news_items
+    return df_calc, df_chart, info, fin, bal, holders, news_items
 
 def analyze_smart(df):
     if df.empty or len(df) < 52: return None
@@ -146,80 +125,58 @@ def analyze_smart(df):
     close = now['Close']; ma20 = now['SMA_20']; ma50 = now['SMA_50']
     rsi = now['RSI_14']; macd = now['MACD_12_26_9']; macds = now['MACDs_12_26_9']
     adx = now['ADX_14']; atr = now['ATRr_14']
-    vol_now = now['Volume']; vol_avg = df['Volume'].rolling(20).mean().iloc[-1]
-    high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
-    high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
-
-    # --- SỬA LỖI VALUE ERROR TẠI ĐÂY ---
-    score = 5; pros = []; cons = []
+    
+    # --- FIX LỖI VALUE ERROR TẠI ĐÂY ---
+    score = 5
+    pros = []
+    cons = []
     # -----------------------------------
 
-    if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
+    if close > ma20 and close > ma50: score += 2; pros.append("Uptrend (Giá > MA20,50)")
     else: score -=1
-    if adx > 25: score += 1; pros.append(f"Trend Mạnh")
-    if rsi < 30: score += 2; pros.append("Quá bán (Hồi phục)")
-    elif rsi > 70: score -= 1; cons.append("Quá mua")
-    if macd > macds: score += 1; pros.append("MACD Tốt")
-    else: score -= 1; cons.append("MACD Xấu")
-    if close > tenkan and close > kijun: score += 1; pros.append("Ichimoku Tốt")
-    if vol_now > vol_avg*1.2 and close > df.iloc[-2]['Close']: score += 2; pros.append("Tiền vào mạnh")
+    if adx > 25: score += 1; pros.append(f"Trend Mạnh (ADX>25)")
+    if rsi < 30: score += 2; pros.append("RSI Quá bán (Hồi phục)")
+    elif rsi > 70: score -= 1; cons.append("RSI Quá mua (Cẩn thận)")
+    if macd > macds: score += 1; pros.append("MACD cắt lên")
+    else: score -= 1; cons.append("MACD cắt xuống")
     
     final_score = max(0, min(10, score))
-    action = "QUAN SÁT"; zone_class = "bg-yellow-gradient"
-    if final_score >= 8: action = "MUA MẠNH"; zone_class = "bg-green-gradient"
-    elif final_score >= 6: action = "MUA THĂM DÒ"; zone_class = "bg-green-gradient"
-    elif final_score <= 3: action = "BÁN / CẮT LỖ"; zone_class = "bg-red-gradient"
+    action = "QUAN SÁT"
+    if final_score >= 8: action = "MUA MẠNH"
+    elif final_score >= 6: action = "MUA THĂM DÒ"
+    elif final_score <= 3: action = "BÁN / CẮT LỖ"
     
-    return {"score": final_score, "action": action, "zone_class": zone_class, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
+    return {"score": final_score, "action": action, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
 
 def analyze_fundamental_score(info):
-    scores = {}
-    pe = info.get('trailingPE', 0); pe = 0 if pe is None else pe
-    if 0 < pe < 15: scores['Định Giá'] = 8
-    elif 15 <= pe < 25: scores['Định Giá'] = 6
-    else: scores['Định Giá'] = 4
-    
-    roe = info.get('returnOnEquity', 0); roe = 0 if roe is None else roe
-    if roe > 0.2: scores['Sinh Lời'] = 9
-    elif roe > 0.1: scores['Sinh Lời'] = 6
-    else: scores['Sinh Lời'] = 4
-    
-    rev_g = info.get('revenueGrowth', 0); rev_g = 0 if rev_g is None else rev_g
-    if rev_g > 0.15: scores['Tăng Trưởng'] = 9
-    elif rev_g > 0.05: scores['Tăng Trưởng'] = 6
-    else: scores['Tăng Trưởng'] = 4
-    
-    debt_eq = info.get('debtToEquity', 100); debt_eq = 100 if debt_eq is None else debt_eq
-    if debt_eq < 50: scores['Sức Khỏe'] = 8
-    elif debt_eq < 150: scores['Sức Khỏe'] = 5
-    else: scores['Sức Khỏe'] = 3
-    
-    pm = info.get('profitMargins', 0); pm = 0 if pm is None else pm
-    if pm > 0.1: scores['Hiệu Quả'] = 8
-    else: scores['Hiệu Quả'] = 5
+    scores = {'Định Giá': 5, 'Sinh Lời': 5, 'Tăng Trưởng': 5, 'Sức Khỏe': 5, 'Hiệu Quả': 5}
+    try:
+        pe = info.get('trailingPE', 0); pe = 0 if pe is None else pe
+        if 0 < pe < 15: scores['Định Giá'] = 8
+        elif pe >= 25: scores['Định Giá'] = 3
+        
+        roe = info.get('returnOnEquity', 0); roe = 0 if roe is None else roe
+        if roe > 0.15: scores['Sinh Lời'] = 8
+        elif roe < 0.05: scores['Sinh Lời'] = 3
+        
+        rev_g = info.get('revenueGrowth', 0); rev_g = 0 if rev_g is None else rev_g
+        if rev_g > 0.1: scores['Tăng Trưởng'] = 8
+        elif rev_g < 0: scores['Tăng Trưởng'] = 3
+    except: pass
     return scores
-
-def clean_table(df):
-    if df.empty: return pd.DataFrame()
-    valid = [i for i in df.index if i in TRANS_MAP]
-    if not valid: return df
-    df_new = df.loc[valid].rename(index=TRANS_MAP)
-    for col in df_new.columns:
-        for idx in df_new.index:
-            if "EPS" not in idx and isinstance(df_new.loc[idx, col], (int, float)): df_new.loc[idx, col] = df_new.loc[idx, col] / 1e9
-    return df_new
 
 def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
+# --- VẼ CHART HTML (FIX LỖI TYPE ERROR) ---
 def plot_gauge(score, action):
     fig = go.Figure(go.Indicator(
         mode = "gauge+number", value = score,
         title = {'text': f"KỸ THUẬT: {action}", 'font': {'size': 18}},
         gauge = {
             'axis': {'range': [None, 10], 'tickwidth': 1},
-            'bar': {'color': "#3498db"}, 'bgcolor': "rgba(128,128,128,0.2)", 'borderwidth': 1, 'bordercolor': "gray",
+            'bar': {'color': "#3498db"}, 'bgcolor': "rgba(128,128,128,0.2)",
             'steps': [{'range': [0, 3], 'color': '#ef4444'}, {'range': [3, 7], 'color': '#f59e0b'}, {'range': [7, 10], 'color': '#10b981'}],
             'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': score}}))
     fig.update_layout(height=250, margin=dict(l=20,r=20,t=40,b=20), paper_bgcolor='rgba(0,0,0,0)') 
@@ -269,13 +226,13 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
     c1, c2 = st.columns([3, 1])
     with c1: symbol = st.text_input("🔍 Nhập Mã Cổ Phiếu (VD: HPG)", value="HPG").upper()
     with c2: 
-        st.write("") # Spacer
-        if st.button("🔄 Cập nhật giá"): st.cache_data.clear(); st.rerun()
+        st.write("") 
+        if st.button("🔄 Cập nhật"): st.cache_data.clear(); st.rerun()
     
     period = st.selectbox("⏱️ Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
 
     if symbol:
-        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_full(symbol, period)
+        df_calc, df_chart, info, fin, bal, holders, news = load_data_full(symbol, period)
         if not df_chart.empty:
             st.title(f"{info.get('longName', symbol)}")
             
@@ -285,7 +242,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             if tech_res:
                 g1, g2 = st.columns(2)
                 with g1:
-                    # --- SỬA LỖI TYPE ERROR TẠI ĐÂY (dùng .to_html) ---
+                    # FIX LỖI TYPE ERROR: Chuyển chart sang HTML trước khi cộng chuỗi
                     gauge_html = plot_gauge(tech_res['score'], tech_res['action']).to_html(full_html=False, include_plotlyjs='cdn', config={'displayModeBar': False})
                     metrics_html = f"""<div style="display: flex; justify-content: space-around; margin-top: 15px; font-weight: 600;"><div>🎯 Giá: {tech_res['entry']:,.0f}</div><div>🛑 Cắt: {tech_res['stop']:,.0f}</div><div>🚀 Tiêu: {tech_res['target']:,.0f}</div></div>"""
                     create_modern_card("Sức Mạnh Kỹ Thuật", gauge_html + metrics_html, icon="🔭")
@@ -299,20 +256,32 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     k1, k2 = st.columns(2)
                     with k1: 
                         st.subheader("✅ Điểm Cộng")
-                        for p in tech_res['pros']: st.success(p)
+                        # FIX LỖI LOOP ATTRIBUTE: Kiểm tra list trước
+                        if tech_res['pros']:
+                            for p in tech_res['pros']: st.success(p)
+                        else: st.write("Không có")
                     with k2: 
                         st.subheader("❌ Điểm Trừ")
-                        for c in tech_res['cons']: st.error(c) if c else st.write("Không có")
+                        if tech_res['cons']:
+                            for c in tech_res['cons']: st.error(c)
+                        else: st.write("Không có")
 
             t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "👥 Cổ Đông"])
             with t1: render_pro_chart(df_chart, symbol)
             with t2:
-                st.caption("Tin tức mới nhất từ Google News")
                 for item in news: st.markdown(f'<div class="news-item-pro"><a href="{item["link"]}" target="_blank" class="news-title-pro">{item["title"]}</a><div class="news-meta-pro">🕒 {item["published"][:16]} | 🔗 {item["source"]}</div></div>', unsafe_allow_html=True)
             with t3:
                 c_left, c_right = st.columns(2)
-                with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True)
-                with c_right: st.subheader("Cân Đối KT"); st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
+                # Sử dụng hàm clean_table để hiển thị tên tiếng Việt
+                def clean_table(df):
+                    if df.empty: return pd.DataFrame()
+                    valid = [i for i in df.index if i in TRANS_MAP]
+                    if not valid: return df
+                    df_new = df.loc[valid].rename(index=TRANS_MAP)
+                    return df_new
+                
+                with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin), use_container_width=True)
+                with c_right: st.subheader("Cân Đối KT"); st.dataframe(clean_table(bal), use_container_width=True)
             with t4:
                 c1, c2 = st.columns([2, 1])
                 with c1: 
@@ -326,8 +295,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
 
 elif mode == "📊 Bảng Giá & Máy Quét":
     st.title("📊 Bảng Giá & Máy Quét")
-    st.caption("Công cụ quét tín hiệu toàn thị trường.")
-    if st.button("🔄 Cập nhật dữ liệu toàn thị trường"): st.cache_data.clear(); st.rerun()
+    if st.button("🔄 Cập nhật dữ liệu"): st.cache_data.clear(); st.rerun()
     
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
@@ -338,35 +306,31 @@ elif mode == "📊 Bảng Giá & Máy Quét":
             if 'MUA THĂM DÒ' in val: return 'color: #10b981; font-weight: 600;'
             if 'BÁN' in val: return 'color: #ef4444; font-weight: 700;'
             return 'color: #f59e0b; font-weight: 500;'
-        def highlight_score(val):
-            color = '#ef4444' if val <= 3 else '#f59e0b' if val < 8 else '#10b981'
-            return f'font-weight: bold; color: {color}'
-        return df.style.map(color_act, subset=['Hành động']).map(highlight_score, subset=['Điểm']).format({"Giá TT": "{:,.0f}"})
+        return df.style.map(color_act, subset=['Hành động']).format({"Giá TT": "{:,.0f}"})
 
     with tabs[0]:
-        st.info("Nhập danh sách mã cần quét (cách nhau dấu phẩy). Ví dụ: HPG, VCB, FPT")
-        inp = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, DIG, CEO, DXG", height=80)
-        if st.button("🚀 KÍCH HOẠT RADAR (Tự Nhập)"):
+        st.info("Nhập danh sách mã cần quét (cách nhau dấu phẩy).")
+        inp = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG", height=80)
+        if st.button("🚀 KÍCH HOẠT RADAR"):
             ticks = [x.strip().upper() for x in inp.split(',') if x.strip()]
-            if len(ticks) > 30: ticks = ticks[:30]; st.warning("⚠️ Danh sách quá dài! Chỉ quét 30 mã đầu tiên.")
+            if len(ticks) > 30: ticks = ticks[:30]; st.warning("⚠️ Chỉ quét 30 mã đầu.")
             res = []
-            bar = st.progress(0, "Đang khởi động vệ tinh...")
+            bar = st.progress(0, "Đang khởi động...")
             for i, t in enumerate(ticks):
-                bar.progress((i+1)/len(ticks), f"Đang phân tích tín hiệu: {t}...")
+                bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                 try:
-                    df, _, _, _, _, _, _, _ = load_data_full(t, "1y")
+                    df, _, _, _, _, _, _ = load_data_full(t, "1y")
                     s = analyze_smart(df)
                     if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": s['entry']})
                 except: pass
             bar.empty()
             if res:
                 df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
-                st.dataframe(style_dataframe(df_res), use_container_width=True, height=500)
-            else: st.error("Không tìm thấy dữ liệu phù hợp.")
+                st.dataframe(style_dataframe(df_res), use_container_width=True)
+            else: st.error("Không tìm thấy dữ liệu.")
 
     for tab, name in zip(tabs[1:], list(STOCK_GROUPS.keys())):
         with tab:
-            st.write(f"### 📡 Tín hiệu nhóm: {name}")
             if st.button(f"🚀 Quét Nhóm {name}", key=name):
                 ticks = STOCK_GROUPS[name].split(',')
                 res = []
@@ -374,14 +338,13 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 for i, t in enumerate(ticks):
                     bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                     try:
-                        df, _, _, _, _, _, _, _ = load_data_full(t, "1y")
+                        df, _, _, _, _, _, _ = load_data_full(t, "1y")
                         s = analyze_smart(df)
                         if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": s['entry']})
                     except: pass
                 bar.empty()
                 if res:
                     df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
-                    st.dataframe(style_dataframe(df_res), use_container_width=True, height=500)
-                    if df_res.iloc[0]['Điểm'] >= 8: st.balloons(); st.success(f"💎 SIÊU CỔ PHIẾU DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
+                    st.dataframe(style_dataframe(df_res), use_container_width=True)
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.2 - Bug Free Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.2 - Bug Free</div>', unsafe_allow_html=True)
