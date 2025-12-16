@@ -8,7 +8,7 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Immortal V10.1", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Black Pearl", page_icon="🏴‍☠️")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -21,68 +21,101 @@ if MAINTENANCE_MODE:
     st.stop()
 
 if "PASSWORD" in st.secrets:
-    pwd = st.sidebar.text_input("🔒 Mật khẩu Hoàng Gia:", type="password")
+    pwd = st.sidebar.text_input("🔒 Mật khẩu:", type="password")
     if pwd != st.secrets["PASSWORD"]:
-        st.info("Vui lòng nhập mật khẩu để truy cập hệ thống.")
+        st.info("Vui lòng nhập mật khẩu.")
         st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN & TỪ ĐIỂN (ĐÃ FIX MÀU CHỮ)
+# 🎨 GIAO DIỆN DARK MODE TOÀN DIỆN (V10.2)
 # ==========================================
 st.markdown("""
 <style>
-    /* Ép buộc nền tối cho toàn bộ app để đồng bộ */
-    .stApp {background-color: #0e1117;}
+    /* 1. Nền đen cho toàn bộ Ứng dụng */
+    .stApp {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
     
-    h1, h2, h3 {color: #64b5f6 !important;}
-    [data-testid="stMetricValue"] {font-size: 1.3rem !important; color: #e0e0e0;}
+    /* 2. Nền đen cho Sidebar (Thanh bên trái) */
+    [data-testid="stSidebar"] {
+        background-color: #111111 !important;
+        border-right: 1px solid #333;
+    }
     
-    /* Card Tín hiệu */
+    /* 3. Chỉnh màu chữ Tiêu đề */
+    h1, h2, h3 {color: #00e676 !important;} /* Màu xanh lá mạ nổi bật */
+    p, div, span {color: #e0e0e0;} /* Màu chữ nội dung xám sáng */
+    
+    /* 4. Chỉnh màu các chỉ số (Metric) */
+    [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important; 
+        color: #00b0ff !important; /* Màu xanh dương neon */
+    }
+    [data-testid="stMetricLabel"] {color: #aaaaaa !important;}
+    
+    /* 5. Card Khuyến nghị (Giao diện thẻ) */
     .rec-card {
-        background-color: #1f2937; border: 1px solid #374151;
-        border-radius: 10px; padding: 20px; text-align: center;
+        background-color: #1c1c1c; 
+        border: 1px solid #333;
+        border-radius: 12px; 
+        padding: 20px; 
+        text-align: center;
         margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(255,255,255,0.05);
     }
     .score-circle {
-        display: inline-block; width: 60px; height: 60px; line-height: 60px;
-        border-radius: 50%; font-size: 24px; font-weight: bold; color: white;
+        display: inline-block; width: 70px; height: 70px; line-height: 70px;
+        border-radius: 50%; font-size: 28px; font-weight: bold; color: white;
         margin-bottom: 10px;
+        text-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
-    .green-zone {background-color: #10b981; box-shadow: 0 0 15px #10b981;}
-    .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
-    .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
+    .green-zone {background-color: #00c853; box-shadow: 0 0 20px #00c853;}
+    .red-zone {background-color: #d50000; box-shadow: 0 0 20px #d50000;}
+    .yellow-zone {background-color: #ffab00; box-shadow: 0 0 20px #ffab00;}
     
-    /* Tin tức (ĐÃ SỬA: Thêm nền đen và chữ sáng) */
+    /* 6. Tin tức (Fix lỗi khó đọc) */
     .news-item {
-        background-color: #262730; /* Nền xám đậm */
+        background-color: #161b22; /* Màu xám rất đậm */
         padding: 15px; 
         border-radius: 8px; 
-        margin-bottom: 10px; 
-        border: 1px solid #444;
-        transition: transform 0.2s;
+        margin-bottom: 12px; 
+        border: 1px solid #30363d;
+        transition: all 0.2s;
     }
     .news-item:hover {
-        transform: scale(1.01);
-        border-color: #64b5f6;
+        border-color: #58a6ff;
+        transform: translateX(5px);
     }
     .news-title {
-        color: #ffffff !important; /* Chữ trắng tinh */
+        color: #58a6ff !important; /* Màu xanh link sáng */
         font-weight: bold;
         font-size: 16px;
         text-decoration: none;
         display: block;
-        margin-bottom: 5px;
+        margin-bottom: 6px;
+    }
+    .news-title:hover {
+        text-decoration: underline;
+        color: #79c0ff !important;
     }
     .news-meta {
-        color: #fb8c00; /* Màu cam sáng cho ngày tháng */
-        font-size: 13px;
+        color: #8b949e; /* Màu xám ghi */
+        font-size: 12px;
     }
     
-    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #9ca3af; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151;}
+    /* 7. Footer */
+    .footer {
+        position: fixed; left: 0; bottom: 0; width: 100%; 
+        background: #0d1117; color: #8b949e; 
+        text-align: center; font-size: 12px; padding: 8px; 
+        border-top: 1px solid #30363d;
+        z-index: 999;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Từ điển Full 35 chỉ số
+# Từ điển 35 chỉ số
 TRANS_MAP = {
     'Total Revenue': '1. Tổng Doanh Thu', 'Operating Revenue': '   - Doanh thu HĐ',
     'Cost Of Revenue': '2. Giá Vốn Hàng Bán', 'Gross Profit': '3. Lợi Nhuận Gộp',
@@ -96,10 +129,9 @@ TRANS_MAP = {
 }
 
 # --- SIDEBAR ---
-st.sidebar.title("🎛️ Trạm Điều Khiển")
-st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**")
-if MAINTENANCE_MODE: st.sidebar.error("🚧 Đang Bảo Trì")
-mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "⚡ Máy Quét (Scanner)"])
+st.sidebar.title("🎛️ Điều Khiển")
+st.sidebar.success("👑 **Thăng Long**")
+mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích", "⚡ Máy Quét"])
 
 # ==========================================
 # 🧠 BỘ NÃO XỬ LÝ
@@ -207,7 +239,7 @@ def clean_table(df):
 # ==========================================
 # 🖥️ GIAO DIỆN CHÍNH
 # ==========================================
-if mode == "🔮 Phân Tích Chuyên Sâu":
+if mode == "🔮 Phân Tích":
     symbol = st.sidebar.text_input("Nhập Mã CP", value="HPG").upper()
     period = st.sidebar.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
@@ -236,6 +268,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     </div>
                     """, unsafe_allow_html=True)
                 with c2:
+                    st.info("💡 Phân tích chi tiết từ AI:")
                     k1, k2 = st.columns(2)
                     with k1: 
                         for p in strat['pros']: st.success(f"+ {p}")
@@ -247,29 +280,34 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     m2.metric("Cắt Lỗ", f"{strat['stop']:,.0f}")
                     m3.metric("Mục Tiêu", f"{strat['target']:,.0f}")
 
-            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức (Google)", "💰 Tài Chính", "🏢 Hồ Sơ"])
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             
             with t1:
                 row_h = [0.5, 0.15, 0.2, 0.15]
                 fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
+                # 1. Price
                 fig.add_trace(go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'], name='Giá'), row=1, col=1)
                 if show_ma:
                     if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
                     if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
                 if show_bb and 'BBU_20_2.0' in df_chart.columns:
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Up'), row=1, col=1)
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Low', fill='tonexty'), row=1, col=1)
-                colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df_chart.iterrows()]
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
+                # 2. Volume
+                colors = ['#ef4444' if r['Open'] > r['Close'] else '#00e676' for i, r in df_chart.iterrows()]
                 fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=colors, name='Vol'), row=2, col=1)
+                # 3. MACD
                 if show_macd and 'MACD_12_26_9' in df_chart.columns:
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee'), name='MACD'), row=3, col=1)
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6'), name='Signal'), row=3, col=1)
                     fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
+                # 4. RSI
                 if show_rsi and 'RSI_14' in df_chart.columns:
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['RSI_14'], line=dict(color='#a78bfa', width=2), name='RSI'), row=4, col=1)
                     fig.add_hline(y=70, row=4, col=1, line_dash="dot", line_color="#ef4444")
-                    fig.add_hline(y=30, row=4, col=1, line_dash="dot", line_color="#10b981")
-                fig.update_layout(height=800, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
+                    fig.add_hline(y=30, row=4, col=1, line_dash="dot", line_color="#00e676")
+                
+                fig.update_layout(height=800, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig, use_container_width=True)
 
             with t2:
@@ -277,7 +315,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     for item in news:
                         try:
                             dt = item.get('published', '')[:16]
-                            # ĐÃ FIX: Dùng class news-item có background màu tối và chữ màu sáng
+                            # Tin tức hiển thị đẹp trên nền tối
                             st.markdown(f"""
                             <div class="news-item">
                                 <a href="{item.link}" target="_blank" class="news-title">{item.title}</a>
@@ -289,45 +327,4 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             with t3:
                 c_left, c_right = st.columns(2)
                 with c_left:
-                    st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True)
-                    st.subheader("Dòng Tiền"); st.dataframe(clean_table(cash).style.format("{:,.2f}"), use_container_width=True)
-                with c_right:
-                    st.subheader("Cân Đối Kế Toán"); st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
-
-            with t4:
-                c1, c2 = st.columns([2, 1])
-                with c1: st.write(info.get('longBusinessSummary', ''))
-                with c2:
-                    st.info(f"Ngành: {info.get('industry', 'N/A')}")
-                    st.success(f"Nhân sự: {info.get('fullTimeEmployees', 'N/A')}")
-                    st.write("---")
-                    st.subheader("Cổ đông")
-                    try:
-                        if not holders.empty and holders.shape[1] == 2: holders.columns = ['% Nắm', 'Tên']
-                        st.dataframe(holders, use_container_width=True)
-                    except: st.write("No Data")
-
-elif mode == "⚡ Máy Quét (Scanner)":
-    st.title("⚡ Máy Quét Cơ Hội V10")
-    inp = st.text_area("Mã CP:", "HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO")
-    if st.button("🚀 Quét"):
-        ticks = [x.strip().upper() for x in inp.split(',')]
-        res = []
-        bar = st.progress(0, "AI đang xử lý...")
-        for i, t in enumerate(ticks):
-            bar.progress((i+1)/len(ticks), f"Checking {t}...")
-            try:
-                df, _, _, _, _, _, _, _ = load_data_v10(t, "1y")
-                s = analyze_smart(df)
-                if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá Vào": f"{s['entry']:,.0f}"})
-            except: pass
-        bar.empty()
-        if res:
-            df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
-            def color_act(val):
-                if 'MUA' in val: return 'color: #10b981; font-weight: bold'
-                if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
-                return 'color: #f59e0b'
-            st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
-
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V10.1 - High Contrast</div>', unsafe_allow_html=True)
+                    st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.
