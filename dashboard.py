@@ -258,8 +258,11 @@ def analyze_smart(df):
     elif final_score >= 6: action, zone = "MUA THĂM DÒ", "green-zone"
     elif final_score <= 3: action, zone = "BÁN / CẮT LỖ", "red-zone"
     
-    stop_loss = close - 2*atr if close > supertrend else close + 2*atr
-    take_profit = close + 3*atr if close > supertrend else close - 3*atr
+    # --- SỬA LẠI ĐOẠN NÀY ---
+    # Luôn tính toán theo chiều MUA (Buy Setup)
+    # Cắt lỗ phải thấp hơn giá mua, Chốt lời phải cao hơn giá mua
+    stop_loss = close - 2 * atr
+    take_profit = close + 3 * atr
 
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
@@ -356,19 +359,22 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                 
                 # CỘT 1: KỸ THUẬT (V14)
                 with col_tech:
-                    st.markdown(f"""
-                    <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
-                        <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
-                        <div class="score-circle {strat['zone']}">{strat['score']}</div>
-                        <h2 style="margin:0">{strat['action']}</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # ... (Phần Card giữ nguyên) ...
                     
-                    st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
+                    # PHẦN 3 CỘT SỐ (ĐÃ CHỈNH LẠI LOGIC MÀU)
+                    k1, k2, k3 = st.columns(3)
                     
-                    with st.expander("🔍 Xem chi tiết Kỹ Thuật (SuperTrend, MFI...)", expanded=True):
-                        for p in strat['pros']: st.success(f"+ {p}")
-                        for c in strat['cons']: st.error(f"- {c}")
+                    k1.metric("💰 Giá Hiện Tại", f"{strat['entry']:,.0f}")
+                    
+                    # Cắt lỗ: Luôn hiện màu đỏ (normal) để cảnh báo
+                    k2.metric("🛑 Cắt Lỗ", f"{strat['stop']:,.0f}", 
+                              delta=f"-{(strat['entry']-strat['stop']):,.0f}", 
+                              delta_color="normal") 
+                    
+                    # Mục tiêu: Luôn hiện màu xanh (normal) để hy vọng
+                    k3.metric("🎯 Mục Tiêu", f"{strat['target']:,.0f}", 
+                              delta=f"+{(strat['target']-strat['entry']):,.0f}", 
+                              delta_color="normal")
 
                 # CỘT 2: CƠ BẢN (P/E, ROE)
                 with col_fund:
@@ -452,3 +458,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15 Ultimate - Font Inter & Dark Mode Pro</div>', unsafe_allow_html=True)
+
