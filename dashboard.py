@@ -11,7 +11,7 @@ st.set_page_config(layout="wide", page_title="Thăng Long Masterpiece V8.1", pag
 # 👇👇👇 CHÈN ĐOẠN CODE BẢO MẬT VÀO ĐÂY 👇👇👇
 
 # 1. KIỂM TRA BẢO TRÌ (Nếu muốn đóng cửa thì đổi False thành True)
-MAINTENANCE_MODE = False 
+MAINTENANCE_MODE = True 
 
 if MAINTENANCE_MODE:
     st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
@@ -332,4 +332,5 @@ elif mode == "⚡ Máy Quét (Scanner)":
         else: st.error("Không có dữ liệu.")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V8.1 - Masterpiece</div>', unsafe_allow_html=True)
+
 
