@@ -5,11 +5,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
-import streamlit.components.v1 as components 
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Pro V11.1", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Pro V11.2", page_icon="🐲")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -28,7 +27,7 @@ if "PASSWORD" in st.secrets:
         st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN
+# 🎨 GIAO DIỆN DARK MODE PRO
 # ==========================================
 st.markdown("""
 <style>
@@ -202,40 +201,17 @@ def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
-# --- HÀM RENDER TRADINGVIEW ĐÃ FIX TO BỰ ---
-def render_tradingview_widget(symbol):
-    tv_symbol = f"HOSE:{symbol}" # Mặc định HOSE cho chuẩn
-    
-    html_code = f"""
-    <div class="tradingview-widget-container" style="height:800px;width:100%">
-      <div id="tradingview_widget" style="height:calc(100% - 32px);width:100%"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget(
-      {{
-      "autosize": true,
-      "symbol": "{tv_symbol}",
-      "interval": "D",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "theme": "dark",
-      "style": "1",
-      "locale": "vi_VN",
-      "enable_publishing": false,
-      "allow_symbol_change": true,
-      "container_id": "tradingview_widget"
-      }}
-      );
-      </script>
-    </div>
-    """
-    components.html(html_code, height=800) # Tăng chiều cao lên 800px
-
 # ==========================================
 # 🖥️ GIAO DIỆN CHÍNH
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
     symbol = st.sidebar.text_input("Nhập Mã CP", value="HPG").upper()
-    period = st.sidebar.selectbox("Khung thời gian (AI)", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
+    period = st.sidebar.selectbox("Khung thời gian (Chart)", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
+    
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Cấu hình Chart")
+    show_ma = st.sidebar.checkbox("Đường MA (20/50)", True)
+    show_bb = st.sidebar.checkbox("Bollinger Bands", True)
     
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v11(symbol, period)
@@ -267,35 +243,53 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     m3.metric("Mục Tiêu (Gợi ý)", f"{strat['target']:,.0f}")
 
             # TABS
-            t0, t1, t2, t3, t4 = st.tabs(["📈 TradingView (Pro)", "🤖 Biểu Đồ AI", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ Kỹ Thuật (Pro)", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             
-            with t0:
-                # Gọi hàm vẽ biểu đồ to
-                render_tradingview_widget(symbol)
-
             with t1:
-                st.caption("Biểu đồ phân tích kỹ thuật từ hệ thống AI (Plotly)")
-                # ... (Giữ nguyên code chart cũ) ...
-                row_h = [0.5, 0.15, 0.2, 0.15]
-                fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
-                fig.add_trace(go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'], name='Giá'), row=1, col=1)
-                if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
-                if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
-                if 'BBU_20_2.0' in df_chart.columns:
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Up'), row=1, col=1)
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Low', fill='tonexty'), row=1, col=1)
+                # --- VẼ BIỂU ĐỒ PRO (THAY THẾ TRADINGVIEW) ---
+                row_h = [0.6, 0.2, 0.2]
+                fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
+                
+                # 1. Nến (Candlestick)
+                fig.add_trace(go.Candlestick(
+                    x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], 
+                    low=df_chart['Low'], close=df_chart['Close'], name='Giá'
+                ), row=1, col=1)
+                
+                # 2. MA & Bollinger
+                if show_ma:
+                    if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+                    if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
+                if show_bb and 'BBU_20_2.0' in df_chart.columns:
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Upper'), row=1, col=1)
+                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Lower', fill='tonexty'), row=1, col=1)
+
+                # 3. Volume (Màu theo nến)
                 colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df_chart.iterrows()]
-                fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=colors, name='Vol'), row=2, col=1)
+                fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
+                
+                # 4. MACD
                 if 'MACD_12_26_9' in df_chart.columns:
-                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee'), name='MACD'), row=3, col=1)
-                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6'), name='Signal'), row=3, col=1)
+                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
+                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
                     fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
-                if 'RSI_14' in df_chart.columns:
-                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['RSI_14'], line=dict(color='#a78bfa', width=2), name='RSI'), row=4, col=1)
-                    fig.add_hline(y=70, row=4, col=1, line_dash="dot", line_color="#ef4444")
-                    fig.add_hline(y=30, row=4, col=1, line_dash="dot", line_color="#10b981")
-                fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
-                st.plotly_chart(fig, use_container_width=True)
+
+                # --- CẤU HÌNH LAYOUT CHUẨN TRADINGVIEW ---
+                fig.update_layout(
+                    height=800, 
+                    template="plotly_dark",
+                    hovermode="x unified", # HIỆU ỨNG CROSSHAIR (RÊ CHUỘT)
+                    dragmode="pan", # Mặc định là kéo thả (Pan)
+                    margin=dict(l=0,r=0,t=0,b=0),
+                    xaxis_rangeslider_visible=True, # THANH TRƯỢT ZOOM BÊN DƯỚI
+                    xaxis=dict(showgrid=False), # Bỏ lưới dọc cho sạch
+                    yaxis=dict(showgrid=True, gridcolor='#333'),
+                )
+                
+                # Cấu hình thanh trượt nhỏ gọn
+                fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
+                
+                st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True})
 
             with t2:
                 if news:
@@ -334,7 +328,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     except: st.write("No Data")
 
 elif mode == "⚡ Máy Quét (Scanner)":
-    st.title("⚡ Máy Quét Cơ Hội V11.1")
+    st.title("⚡ Máy Quét Cơ Hội V11.2")
     inp = st.text_area("Mã CP:", "HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO")
     if st.button("🚀 Quét"):
         ticks = [x.strip().upper() for x in inp.split(',')]
@@ -356,4 +350,4 @@ elif mode == "⚡ Máy Quét (Scanner)":
                 return 'color: #f59e0b'
             st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V11.1 - Big Vision</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V11.2 - Self Reliance</div>', unsafe_allow_html=True)
