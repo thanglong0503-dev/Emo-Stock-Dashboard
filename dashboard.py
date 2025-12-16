@@ -283,45 +283,42 @@ def analyze_fundamental(info):
     elif score >= 2: health, color = "TRUNG BÌNH 😐", "orange"
     
     return {"health": health, "color": color, "details": details, "score": score}
-    # --- Gọi hàm phân tích cơ bản ---
-    fund = analyze_fundamental(info)
-            
-            # --- GIAO DIỆN WOW ---
-            # Chia màn hình thành 2 cột: Trái (Kỹ thuật - Cũ), Phải (Cơ bản - Mới)
-            col_tech, col_fund = st.columns(2)
-            
-            with col_tech:
-                # (Đây là code hiển thị Kỹ thuật cũ của Ngài, giữ nguyên)
-                st.markdown(f"""
-                <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
-                    <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
-                    <div class="score-circle {strat['zone']}">{strat['score']}</div>
-                    <h2 style="margin:0">{strat['action']}</h2>
-                    <p style="color:gray; font-size:12px">Định thời điểm Mua/Bán</p>
-                </div>
-                """, unsafe_allow_html=True)
-                # Hiển thị chi tiết kỹ thuật...
-                st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
-
-            with col_fund:
-                # (Đây là phần CƠ BẢN MỚI - Cực Wow)
-                if fund:
+    if strat:
+                # --- Gọi hàm phân tích cơ bản (ĐÃ CĂN LỀ CHUẨN) ---
+                fund = analyze_fundamental(info)
+                
+                # --- GIAO DIỆN WOW ---
+                # Chia màn hình thành 2 cột
+                col_tech, col_fund = st.columns(2)
+                
+                with col_tech:
                     st.markdown(f"""
-                    <div class="rec-card" style="border-left: 5px solid {fund['color']};">
-                        <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
-                        <div style="font-size: 40px; margin: 10px 0;">{fund['health']}</div>
-                        <p style="color:gray; font-size:12px">Chất lượng Doanh nghiệp</p>
+                    <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
+                        <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
+                        <div class="score-circle {strat['zone']}">{strat['score']}</div>
+                        <h2 style="margin:0">{strat['action']}</h2>
+                        <p style="color:gray; font-size:12px">Định thời điểm Mua/Bán</p>
                     </div>
                     """, unsafe_allow_html=True)
-                    
-                    # Hiển thị các tiêu chí cơ bản dưới dạng Progress Bar hoặc List đẹp
-                    st.write("🔍 **Soi Cơ Bản:**")
-                    for d in fund['details']:
-                        if "Cảnh báo" in d: st.error(d)
-                        elif "Giá trị thực" in d: st.info(d)
-                        else: st.success(f"✅ {d}")
-                else:
-                    st.warning("Thiếu dữ liệu cơ bản từ nguồn.")
+                    st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
+
+                with col_fund:
+                    if fund:
+                        st.markdown(f"""
+                        <div class="rec-card" style="border-left: 5px solid {fund['color']};">
+                            <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
+                            <div style="font-size: 40px; margin: 10px 0;">{fund['health']}</div>
+                            <p style="color:gray; font-size:12px">Chất lượng Doanh nghiệp</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write("🔍 **Chi tiết:**")
+                        for d in fund['details']:
+                            if "Cảnh báo" in d: st.error(d)
+                            elif "Giá trị thực" in d: st.info(d)
+                            else: st.success(f"✅ {d}")
+                    else:
+                        st.warning("Thiếu dữ liệu cơ bản.")
     # --- LOGIC CAO CẤP V14 ---
     
     # 1. SuperTrend (Vua xu hướng) - Chiếm trọng số cao nhất
@@ -510,6 +507,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
