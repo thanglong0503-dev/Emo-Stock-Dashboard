@@ -7,13 +7,14 @@ import pandas_ta as ta
 import feedparser
 from datetime import datetime
 
-# --- 1. CẤU HÌNH TRANG WEB (BẮT BUỘC DÒNG ĐẦU) ---
+# --- 1. CẤU HÌNH TRANG WEB (BẮT BUỘC DÒNG ĐẦU TIÊN) ---
 st.set_page_config(layout="wide", page_title="Stock Thang Long Ultimate", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP (MULTI-USER)
 # ==========================================
 
+# Danh sách tài khoản
 USERS_DB = {
     "admin": "admin123",      
     "stock": "stock123",          
@@ -24,6 +25,7 @@ USERS_DB = {
     "uyennhi": "123456"   
 }
 
+# Khởi tạo session
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_name' not in st.session_state:
@@ -45,22 +47,23 @@ def login():
             else:
                 st.error("❌ Sai thông tin!")
 
+# Chặn nếu chưa đăng nhập
 if not st.session_state['logged_in']:
     login()
     st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN & CẤU HÌNH
+# 🎨 GIAO DIỆN & CẤU HÌNH CSS
 # ==========================================
-# Sidebar
+# Sidebar Logout
 st.sidebar.title("🎛️ Trạm Điều Khiển")
-st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
+st.sidebar.info(f"👤 Xin chào: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"):
     st.session_state['logged_in'] = False
     st.rerun()
 st.sidebar.divider()
 
-# CSS
+# CSS làm đẹp
 st.markdown("""
 <style>
     h1, h2, h3 {color: #64b5f6 !important;}
@@ -76,7 +79,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Data Constants
+# Dữ liệu hằng số
 STOCK_GROUPS = {
     "🏆 VN30": "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,POW,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE",
     "🏦 Ngân Hàng": "VCB,BID,CTG,TCB,VPB,MBB,ACB,STB,HDB,VIB,TPB,SHB,EIB,MSB,OCB,LPB,SSB",
@@ -159,9 +162,12 @@ def analyze_smart(df):
     now = df.iloc[-1]
     
     close = now['Close']
-    st_col = [c for c in df.columns if 'SUPERT' in c][0] 
-    supertrend = now[st_col]
-    
+    try:
+        # Tìm cột SuperTrend động
+        st_col = [c for c in df.columns if 'SUPERT' in c][0] 
+        supertrend = now[st_col]
+    except: supertrend = close # Fallback nếu lỗi
+
     mfi = now.get('MFI_14', 50)
     k = now.get('STOCHRSIk_14_14_3_3', 50)
     d = now.get('STOCHRSId_14_14_3_3', 50)
@@ -198,20 +204,24 @@ def analyze_smart(df):
 
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
-# 2. Phân tích Cơ Bản (Fundamental)
+# 2. Phân tích Cơ Bản (Fundamental WOW)
 def analyze_fundamental(info):
     if not info: return None
     score = 0; details = []
     
     pe = info.get('trailingPE', 0)
+    if pe is None: pe = 0
+    
     if 0 < pe < 12: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
     elif 12 <= pe <= 20: score += 1; details.append(f"P/E Hợp lý ({pe:.1f}x)")
     else: details.append(f"P/E Khá cao ({pe:.1f}x)")
     
     roe = info.get('returnOnEquity', 0)
+    if roe is None: roe = 0
     if roe > 0.15: score += 2; details.append(f"ROE Tốt ({roe:.1%})")
     
     debt = info.get('debtToEquity', 0)
+    if debt is None: debt = 0
     if debt < 50: score += 1; details.append("Nợ vay thấp")
 
     # Xếp hạng
@@ -250,7 +260,7 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🖥️ MAIN UI
+# 🖥️ MAIN UI (GIAO DIỆN CHÍNH)
 # ==========================================
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"):
