@@ -8,7 +8,7 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Immortal V10.4", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Immortal V10.5", page_icon="🐲")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -27,23 +27,33 @@ if "PASSWORD" in st.secrets:
         st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN (ĐÃ SỬA LỖI MÀU CHỮ TIN TỨC)
+# 🎨 GIAO DIỆN (ĐÃ SỬA LỖI MỜ SỐ LIỆU)
 # ==========================================
 st.markdown("""
 <style>
-    /* Giữ nguyên nền mặc định của Streamlit (Tự động theo Light/Dark) */
+    /* Giữ nguyên nền mặc định */
     
     h1, h2, h3 {color: #64b5f6 !important;}
-    [data-testid="stMetricValue"] {font-size: 1.3rem !important; color: #e0e0e0;}
+    
+    /* 👇👇👇 ĐÃ SỬA CHỖ NÀY: Xóa màu xám, để màu tự động + In đậm 👇👇👇 */
+    [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important;
+        font-weight: bold !important;
+        /* Không ép màu nữa để nó tự đen/trắng theo nền */
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        opacity: 0.8;
+    }
     
     /* Card Khuyến nghị */
     .rec-card {
-        background-color: #1f2937; /* Luôn tối để nổi bật */
+        background-color: #1f2937;
         border: 1px solid #374151;
         border-radius: 10px; padding: 20px; text-align: center;
         margin-bottom: 20px;
     }
-    .rec-card h3 {color: white !important;} /* Chữ trong card luôn trắng */
+    .rec-card h3 {color: white !important;} 
     
     .score-circle {
         display: inline-block; width: 60px; height: 60px; line-height: 60px;
@@ -54,14 +64,14 @@ st.markdown("""
     .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
     .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
     
-    /* TIN TỨC (SỬA LẠI: Dùng màu chữ động theo giao diện) */
+    /* Tin tức */
     .news-item {
         padding: 10px; 
         border-bottom: 1px solid #444; 
         margin-bottom: 10px;
     }
     .news-item:hover {
-        background-color: rgba(100, 181, 246, 0.1); /* Hiệu ứng hover nhẹ */
+        background-color: rgba(100, 181, 246, 0.1);
         border-radius: 5px;
     }
     .news-title {
@@ -70,7 +80,7 @@ st.markdown("""
         text-decoration: none;
         display: block;
         margin-bottom: 5px;
-        color: inherit !important; /* Lấy màu chữ theo giao diện chính */
+        color: inherit !important;
     }
     .news-meta {
         font-size: 12px;
@@ -250,11 +260,12 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                         for c in strat['cons']: st.error(f"- {c}")
                     st.divider()
                     m1, m2, m3 = st.columns(3)
+                    # SỐ LIỆU SẼ TỰ ĐỘNG ĐEN/TRẮNG RÕ RÀNG
                     m1.metric("Giá Vào", f"{strat['entry']:,.0f}")
                     m2.metric("Cắt Lỗ", f"{strat['stop']:,.0f}")
                     m3.metric("Mục Tiêu", f"{strat['target']:,.0f}")
 
-            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức (Google)", "💰 Tài Chính", "🏢 Hồ Sơ"])
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             
             with t1:
                 row_h = [0.5, 0.15, 0.2, 0.15]
@@ -285,7 +296,6 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                         try:
                             dt = item['published'][:16]
                             src = item['source']
-                            # ĐÃ SỬA: Dùng text-decoration none và color inherit để chữ luôn hiện rõ
                             st.markdown(f"""
                             <div class="news-item">
                                 <a href="{item['link']}" target="_blank" class="news-title">{item['title']}</a>
@@ -317,7 +327,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     except: st.write("No Data")
 
 elif mode == "⚡ Máy Quét (Scanner)":
-    st.title("⚡ Máy Quét Cơ Hội V10.4")
+    st.title("⚡ Máy Quét Cơ Hội V10.5")
     inp = st.text_area("Mã CP:", "HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO")
     if st.button("🚀 Quét"):
         ticks = [x.strip().upper() for x in inp.split(',')]
@@ -339,4 +349,4 @@ elif mode == "⚡ Máy Quét (Scanner)":
                 return 'color: #f59e0b'
             st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V10.4 - News Fixed</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V10.5 - Clarity Fixed</div>', unsafe_allow_html=True)
