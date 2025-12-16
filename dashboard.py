@@ -13,7 +13,7 @@ st.set_page_config(layout="wide", page_title="Thăng Long Black Pearl", page_ico
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
 # ==========================================
-MAINTENANCE_MODE = False 
+MAINTENANCE_MODE = True 
 
 if MAINTENANCE_MODE:
     st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
@@ -328,3 +328,4 @@ if mode == "🔮 Phân Tích":
                 c_left, c_right = st.columns(2)
                 with c_left:
                     st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.
+
