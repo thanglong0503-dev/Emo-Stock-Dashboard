@@ -356,16 +356,23 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                 
                 # CỘT 1: KỸ THUẬT (V14)
                 with col_tech:
+                    # 1. Hiện cái Card (Giữ nguyên)
                     st.markdown(f"""
                     <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
                         <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
                         <div class="score-circle {strat['zone']}">{strat['score']}</div>
                         <h2 style="margin:0">{strat['action']}</h2>
+                        <p style="color:#cbd5e1; font-size:12px">Định thời điểm Mua/Bán</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
+                    # 2. PHẦN BỔ SUNG: Hiển thị Giá, Cắt lỗ, Mục tiêu (MỚI)
+                    k1, k2, k3 = st.columns(3)
+                    k1.metric("💰 Giá Hiện Tại", f"{strat['entry']:,.0f}")
+                    k2.metric("🛑 Cắt Lỗ", f"{strat['stop']:,.0f}", delta=f"{strat['stop']-strat['entry']:,.0f}", delta_color="inverse")
+                    k3.metric("🎯 Mục Tiêu", f"{strat['target']:,.0f}", delta=f"{strat['target']-strat['entry']:,.0f}")
                     
+                    # 3. Nút xem chi tiết (Giữ nguyên)
                     with st.expander("🔍 Xem chi tiết Kỹ Thuật (SuperTrend, MFI...)", expanded=True):
                         for p in strat['pros']: st.success(f"+ {p}")
                         for c in strat['cons']: st.error(f"- {c}")
@@ -452,3 +459,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15 Ultimate - Font Inter & Dark Mode Pro</div>', unsafe_allow_html=True)
+
