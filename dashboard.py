@@ -30,8 +30,8 @@ if 'user_name' not in st.session_state:
 
 # 3. HÀM XỬ LÝ ĐĂNG NHẬP
 def login():
-    st.title("🔐 STOCK THĂNG LONG")
-    st.write("Vui lòng xuất trình lệnh bài để tiến vào.")
+    st.title("🔐 STOCK THANG LONG")
+    st.write("Đăng nhập để tiếp tục.")
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
@@ -359,6 +359,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
