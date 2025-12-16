@@ -228,7 +228,100 @@ def analyze_smart(df):
     score = 0
     pros = []
     cons = []
+def analyze_fundamental(info):
+    if not info: return None
+    
+    score = 0
+    details = []
+    
+    # 1. Định giá P/E (Rẻ hay Đắt?)
+    pe = info.get('trailingPE', 0)
+    # P/E trung bình VN khoảng 13-15. Dưới 12 là rẻ, trên 20 là đắt (tương đối)
+    if 0 < pe < 12: 
+        score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
+    elif 12 <= pe <= 20: 
+        score += 1; details.append(f"P/E Hợp lý ({pe:.1f}x)")
+    else: 
+        details.append(f"P/E Khá cao ({pe:.1f}x)")
+        
+    # 2. Hiệu quả sinh lời ROE (Lãnh đạo làm ăn thế nào?)
+    roe = info.get('returnOnEquity', 0)
+    if roe > 0.20: # Trên 20% là xuất sắc
+        score += 2; details.append(f"ROE Xuất sắc ({roe:.1%})")
+    elif roe > 0.12: # Trên 12% là ổn
+        score += 1; details.append(f"ROE Ổn định ({roe:.1%})")
+        
+    # 3. Tăng trưởng doanh thu (Công ty có lớn lên không?)
+    rev_growth = info.get('revenueGrowth', 0)
+    if rev_growth > 0.15: 
+        score += 2; details.append(f"Tăng trưởng mạnh ({rev_growth:.1%})")
+    elif rev_growth > 0:
+        score += 1
+        
+    # 4. Sức khỏe tài chính (Nợ/Vốn chủ)
+    debt = info.get('debtToEquity', 0)
+    if debt < 50: # Nợ ít
+        score += 2; details.append("Cấu trúc vốn An toàn (Nợ thấp)")
+    elif debt > 150:
+        details.append("⚠️ Cảnh báo: Nợ vay cao")
 
+    # 5. Định giá Benjamin Graham (Giá trị thực ước tính)
+    # Công thức: Căn bậc 2 của (22.5 * EPS * BVPS)
+    try:
+        eps = info.get('trailingEps', 0)
+        bvps = info.get('bookValue', 0)
+        if eps > 0 and bvps > 0:
+            graham_price = (22.5 * eps * bvps) ** 0.5
+            details.append(f"💎 Giá trị thực (Graham): {graham_price:,.0f}")
+    except: pass
+
+    # Xếp hạng Cơ bản
+    health = "YẾU KÉM"
+    color = "red"
+    if score >= 7: health, color = "KIM CƯƠNG 💎", "green"
+    elif score >= 4: health, color = "VỮNG MẠNH 💪", "blue"
+    elif score >= 2: health, color = "TRUNG BÌNH 😐", "orange"
+    
+    return {"health": health, "color": color, "details": details, "score": score}
+    # --- Gọi hàm phân tích cơ bản ---
+            fund = analyze_fundamental(info)
+            
+            # --- GIAO DIỆN WOW ---
+            # Chia màn hình thành 2 cột: Trái (Kỹ thuật - Cũ), Phải (Cơ bản - Mới)
+            col_tech, col_fund = st.columns(2)
+            
+            with col_tech:
+                # (Đây là code hiển thị Kỹ thuật cũ của Ngài, giữ nguyên)
+                st.markdown(f"""
+                <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
+                    <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
+                    <div class="score-circle {strat['zone']}">{strat['score']}</div>
+                    <h2 style="margin:0">{strat['action']}</h2>
+                    <p style="color:gray; font-size:12px">Định thời điểm Mua/Bán</p>
+                </div>
+                """, unsafe_allow_html=True)
+                # Hiển thị chi tiết kỹ thuật...
+                st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
+
+            with col_fund:
+                # (Đây là phần CƠ BẢN MỚI - Cực Wow)
+                if fund:
+                    st.markdown(f"""
+                    <div class="rec-card" style="border-left: 5px solid {fund['color']};">
+                        <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
+                        <div style="font-size: 40px; margin: 10px 0;">{fund['health']}</div>
+                        <p style="color:gray; font-size:12px">Chất lượng Doanh nghiệp</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Hiển thị các tiêu chí cơ bản dưới dạng Progress Bar hoặc List đẹp
+                    st.write("🔍 **Soi Cơ Bản:**")
+                    for d in fund['details']:
+                        if "Cảnh báo" in d: st.error(d)
+                        elif "Giá trị thực" in d: st.info(d)
+                        else: st.success(f"✅ {d}")
+                else:
+                    st.warning("Thiếu dữ liệu cơ bản từ nguồn.")
     # --- LOGIC CAO CẤP V14 ---
     
     # 1. SuperTrend (Vua xu hướng) - Chiếm trọng số cao nhất
@@ -417,6 +510,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
