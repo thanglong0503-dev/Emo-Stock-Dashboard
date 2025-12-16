@@ -8,7 +8,7 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Intelligent V14", page_icon="🧠")
+st.set_page_config(layout="wide", page_title="Thăng Long Hybrid V14.1", page_icon="🐲")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -27,7 +27,7 @@ if "PASSWORD" in st.secrets:
         st.stop()
 
 # ==========================================
-# 📂 KHO MÃ CỔ PHIẾU
+# 📂 KHO MÃ CỔ PHIẾU (DỮ LIỆU)
 # ==========================================
 STOCK_GROUPS = {
     "🏆 VN30": "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,POW,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE",
@@ -86,7 +86,7 @@ if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"):
     st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU & PHÂN TÍCH (CỰC MẠNH)
+# 🧠 XỬ LÝ DỮ LIỆU & PHÂN TÍCH
 # ==========================================
 
 @st.cache_data(ttl=300)
@@ -101,7 +101,7 @@ def load_news_google(symbol):
     except: return []
 
 @st.cache_data(ttl=300)
-def load_data_v14(ticker, time):
+def load_data_full(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
     try:
@@ -134,7 +134,7 @@ def load_data_v14(ticker, time):
     news_items = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news_items
 
-# --- 1. CHẤM ĐIỂM KỸ THUẬT (0-10) ---
+# --- 1. CHẤM ĐIỂM KỸ THUẬT (V14) ---
 def analyze_technical(df):
     if df.empty or len(df) < 52: return None
     now = df.iloc[-1]
@@ -158,50 +158,44 @@ def analyze_technical(df):
     
     final_score = max(0, min(10, score))
     action = "QUAN SÁT"
-    if final_score >= 8: action = "MUA MẠNH"
-    elif final_score >= 6: action = "MUA THĂM DÒ"
-    elif final_score <= 3: action = "BÁN / CẮT LỖ"
+    zone = "yellow-zone" # Mặc định
+    if final_score >= 8: 
+        action = "MUA MẠNH"
+        zone = "green-zone"
+    elif final_score >= 6: 
+        action = "MUA THĂM DÒ"
+        zone = "green-zone"
+    elif final_score <= 3: 
+        action = "BÁN / CẮT LỖ"
+        zone = "red-zone"
     
-    return {"score": final_score, "action": action, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
+    return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
 
-# --- 2. CHẤM ĐIỂM CƠ BẢN (RADAR CHART) ---
+# --- 2. CHẤM ĐIỂM CƠ BẢN (V14) ---
 def analyze_fundamental_score(info):
-    # Dùng info của yfinance để lấy chỉ số cơ bản
-    # Chú ý: Dữ liệu VN trên Yahoo có thể thiếu, nên phải xử lý lỗi (try-except)
     scores = {}
-    
-    # 1. Định giá (P/E)
     pe = info.get('trailingPE', 0)
-    if 0 < pe < 15: scores['Định Giá'] = 8 # Rẻ
-    elif 15 <= pe < 25: scores['Định Giá'] = 6 # Trung bình
-    elif pe >= 25: scores['Định Giá'] = 3 # Đắt
-    else: scores['Định Giá'] = 5 # Không có dữ liệu
+    if 0 < pe < 15: scores['Định Giá'] = 8
+    elif 15 <= pe < 25: scores['Định Giá'] = 6
+    else: scores['Định Giá'] = 3
     
-    # 2. Sinh lời (ROE)
     roe = info.get('returnOnEquity', 0)
-    if roe > 0.2: scores['Sinh Lời'] = 9 # ROE > 20%
-    elif roe > 0.15: scores['Sinh Lời'] = 7
+    if roe > 0.2: scores['Sinh Lời'] = 9
     elif roe > 0.1: scores['Sinh Lời'] = 5
     else: scores['Sinh Lời'] = 3
     
-    # 3. Tăng trưởng (Revenue Growth)
     rev_g = info.get('revenueGrowth', 0)
     if rev_g > 0.2: scores['Tăng Trưởng'] = 9
-    elif rev_g > 0.1: scores['Tăng Trưởng'] = 7
     elif rev_g > 0: scores['Tăng Trưởng'] = 5
     else: scores['Tăng Trưởng'] = 2
     
-    # 4. Sức khỏe TC (Debt/Equity) - Càng thấp càng tốt
     debt_eq = info.get('debtToEquity', 100)
     if debt_eq < 50: scores['Sức Khỏe'] = 8
-    elif debt_eq < 100: scores['Sức Khỏe'] = 6
     else: scores['Sức Khỏe'] = 4
     
-    # 5. Dòng tiền/Biên LN (Profit Margins)
     pm = info.get('profitMargins', 0)
-    if pm > 0.15: scores['Hiệu Quả'] = 8
-    elif pm > 0.05: scores['Hiệu Quả'] = 6
-    else: scores['Hiệu Quả'] = 3
+    if pm > 0.1: scores['Hiệu Quả'] = 8
+    else: scores['Hiệu Quả'] = 4
     
     return scores
 
@@ -219,70 +213,56 @@ def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
-# --- VẼ GAUGE CHART (ĐỒNG HỒ) ---
+# --- VẼ CHART ---
 def plot_gauge(score, action):
     fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = score,
+        mode = "gauge+number", value = score,
         title = {'text': f"KỸ THUẬT: {action}", 'font': {'size': 20, 'color': "white"}},
         gauge = {
             'axis': {'range': [None, 10], 'tickwidth': 1, 'tickcolor': "white"},
-            'bar': {'color': "#64b5f6"}, # Màu kim chỉ
-            'bgcolor': "black",
-            'borderwidth': 2,
-            'bordercolor': "gray",
-            'steps': [
-                {'range': [0, 3], 'color': '#ef4444'},   # Đỏ
-                {'range': [3, 7], 'color': '#f59e0b'},   # Vàng
-                {'range': [7, 10], 'color': '#10b981'}], # Xanh
-            'threshold': {
-                'line': {'color': "white", 'width': 4},
-                'thickness': 0.75,
-                'value': score}}))
+            'bar': {'color': "#64b5f6"}, 'bgcolor': "black", 'borderwidth': 2, 'bordercolor': "gray",
+            'steps': [{'range': [0, 3], 'color': '#ef4444'}, {'range': [3, 7], 'color': '#f59e0b'}, {'range': [7, 10], 'color': '#10b981'}],
+            'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': score}}))
     fig.update_layout(height=250, margin=dict(l=20,r=20,t=40,b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
     return fig
 
-# --- VẼ RADAR CHART (BIỂU ĐỒ NHỆN) ---
 def plot_radar(scores):
-    categories = list(scores.keys())
-    values = list(scores.values())
-    # Khép kín vòng tròn
-    categories = [*categories, categories[0]]
-    values = [*values, values[0]]
-    
-    fig = go.Figure(data=go.Scatterpolar(
-        r=values,
-        theta=categories,
-        fill='toself',
-        name='Chấm điểm cơ bản',
-        line_color='#29b6f6'
-    ))
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 10], color='gray')),
-        showlegend=False,
-        height=250,
-        margin=dict(l=40,r=40,t=20,b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        font={'color': "white"}
-    )
+    categories = list(scores.keys()); values = list(scores.values())
+    categories = [*categories, categories[0]]; values = [*values, values[0]]
+    fig = go.Figure(data=go.Scatterpolar(r=values, theta=categories, fill='toself', name='Chấm điểm cơ bản', line_color='#29b6f6'))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 10], color='gray')), showlegend=False, height=250, margin=dict(l=40,r=40,t=20,b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"})
     return fig
 
-# --- VẼ PIE CHART (CỔ ĐÔNG) ---
 def plot_holders(df_holders):
     if df_holders.empty: return None
     try:
-        # Xử lý dữ liệu holders của Yahoo (thường có cột 0 là % và cột 1 là Tên)
         labels = df_holders[1].tolist()
-        # Chuyển đổi phần trăm string "12.5%" thành float
         values = []
         for v in df_holders[0].tolist():
             try: values.append(float(v.strip('%')))
             except: values.append(0)
-            
         fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
         fig.update_layout(height=300, margin=dict(l=0,r=0,t=30,b=0), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, showlegend=False)
         return fig
     except: return None
+
+def render_pro_chart(df, symbol):
+    row_h = [0.6, 0.2, 0.2]
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
+    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
+    if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+    if 'BBU_20_2.0' in df.columns:
+            fig.add_trace(go.Scatter(x=df.index, y=df['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
+    colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df.iterrows()]
+    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
+    if 'MACD_12_26_9' in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
+        fig.add_trace(go.Bar(x=df.index, y=df['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
+    fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
+    st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True})
 
 # ==========================================
 # 🖥️ GIAO DIỆN CHÍNH
@@ -297,71 +277,43 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
     period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
     if symbol:
-        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v14(symbol, period)
+        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_full(symbol, period)
         if not df_chart.empty:
             st.title(f"💎 {info.get('longName', symbol)}")
             
-            # --- PHẦN 1: TỔNG QUAN ĐIỂM SỐ (NEW V14) ---
+            # --- TÍNH NĂNG V14: GAUGE & RADAR ---
             tech_res = analyze_technical(df_calc)
             fund_scores = analyze_fundamental_score(info)
             
             if tech_res:
-                # Giao diện 2 cột: Trái là Đồng hồ Kỹ thuật, Phải là Radar Cơ bản
                 g1, g2 = st.columns(2)
-                
                 with g1:
                     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
                     st.subheader("🔭 Góc Nhìn Kỹ Thuật")
                     st.plotly_chart(plot_gauge(tech_res['score'], tech_res['action']), use_container_width=True)
                     st.markdown(f"**Giá:** {tech_res['entry']:,.0f} | **Mục tiêu:** {tech_res['target']:,.0f}")
                     st.markdown('</div>', unsafe_allow_html=True)
-                
                 with g2:
                     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                    st.subheader("🏢 Sức Khỏe Doanh Nghiệp (Fundamental)")
+                    st.subheader("🏢 Sức Khỏe (Cơ Bản)")
                     st.plotly_chart(plot_radar(fund_scores), use_container_width=True)
-                    # Hiển thị vài chỉ số cơ bản nhanh
-                    pe = info.get('trailingPE', 'N/A')
-                    eps = info.get('trailingEps', 'N/A')
-                    st.caption(f"P/E: {pe} | EPS: {eps}")
+                    st.caption(f"P/E: {info.get('trailingPE','N/A')} | EPS: {info.get('trailingEps','N/A')}")
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- PHẦN 2: TABS CHI TIẾT ---
-            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ & Chart", "📰 Tin Tức & Sự Kiện", "💰 Tài Chính", "🏢 Hồ Sơ & Cổ Đông"])
-            
-            # Tab 1: Chart Pro
-            with t1:
-                row_h = [0.6, 0.2, 0.2]
-                fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
-                fig.add_trace(go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'], name='Giá'), row=1, col=1)
-                if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
-                if 'BBU_20_2.0' in df_chart.columns:
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
-                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
-                fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=['#ef4444' if r['Open']>r['Close'] else '#10b981' for i,r in df_chart.iterrows()], name='Vol'), row=2, col=1)
-                if 'MACD_12_26_9' in df_chart.columns:
-                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee'), name='MACD'), row=3, col=1)
-                    fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6'), name='Sig'), row=3, col=1)
-                    fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
-                fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", xaxis_rangeslider_visible=True)
-                st.plotly_chart(fig, use_container_width=True)
-            
-            # Tab 2: Tin tức
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ Kỹ Thuật", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ & Cổ Đông"])
+            with t1: render_pro_chart(df_chart, symbol)
             with t2:
                 for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]} | 🔗 {item["source"]}</div></div>', unsafe_allow_html=True)
-            
-            # Tab 3: Tài chính
             with t3:
                 c_left, c_right = st.columns(2)
                 with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True)
                 with c_right: st.subheader("Cân Đối KT"); st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
-            
-            # Tab 4: Hồ sơ & Cổ đông (Có Pie Chart)
             with t4:
                 c1, c2 = st.columns([2, 1])
                 with c1: 
                     st.subheader("Giới thiệu"); st.write(info.get('longBusinessSummary', ''))
                     st.subheader("Cơ Cấu Cổ Đông")
+                    # TÍNH NĂNG V14: PIE CHART
                     pie_fig = plot_holders(holders)
                     if pie_fig: st.plotly_chart(pie_fig, use_container_width=True)
                     else: st.dataframe(holders, use_container_width=True)
@@ -370,9 +322,10 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    # (Phần này giữ nguyên code của V13.1 để đảm bảo tốc độ và tính năng)
     st.title("📊 Bảng Giá & Máy Quét Đa Năng")
     if st.button("🔄 Cập nhật dữ liệu toàn thị trường"): st.cache_data.clear(); st.rerun()
+    
+    # --- GIỮ NGUYÊN V13.1: TAB TỰ NHẬP + CÁC TAB NGÀNH ---
     all_tabs = ["🛠️ Tự Nhập (Manual)"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     
@@ -387,7 +340,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
             for i, t in enumerate(ticks):
                 bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                 try:
-                    df, _, _, _, _, _, _, _ = load_data_v14(t, "1y")
+                    df, _, _, _, _, _, _, _ = load_data_full(t, "1y")
                     s = analyze_technical(df)
                     if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": f"{s['entry']:,.0f}"})
                 except: pass
@@ -410,7 +363,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 for i, t in enumerate(ticks):
                     bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                     try:
-                        df, _, _, _, _, _, _, _ = load_data_v14(t, "1y")
+                        df, _, _, _, _, _, _, _ = load_data_full(t, "1y")
                         s = analyze_technical(df)
                         if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá TT": f"{s['entry']:,.0f}"})
                     except: pass
@@ -422,5 +375,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
                         return 'color: #f59e0b'
                     st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
+                    if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V14 - Intelligent Investor</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V14.1 - The Perfect Hybrid</div>', unsafe_allow_html=True)
