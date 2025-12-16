@@ -7,14 +7,12 @@ import pandas_ta as ta
 import feedparser
 from datetime import datetime
 
-# --- 1. CẤU HÌNH TRANG WEB (BẮT BUỘC DÒNG ĐẦU TIÊN) ---
-st.set_page_config(layout="wide", page_title="Stock V13.2 Multi-User", page_icon="⚡")
+# --- 1. CẤU HÌNH TRANG WEB ---
+st.set_page_config(layout="wide", page_title="Stock V13.2 Plus", page_icon="⚡")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP ĐA NGƯỜI DÙNG
 # ==========================================
-
-# Danh sách tài khoản
 USERS_DB = {
     "admin": "admin123",      
     "stock": "stock123",          
@@ -25,7 +23,6 @@ USERS_DB = {
     "uyennhi": "123456"   
 }
 
-# Khởi tạo session
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_name' not in st.session_state:
@@ -47,16 +44,13 @@ def login():
             else:
                 st.error("❌ Sai thông tin!")
 
-# Chặn nếu chưa đăng nhập
 if not st.session_state['logged_in']:
     login()
     st.stop()
 
 # ==========================================
-# 🚀 NỘI DUNG CHÍNH (CHỈ CHẠY KHI ĐÃ LOGIN)
+# 🎨 GIAO DIỆN & CẤU HÌNH CSS
 # ==========================================
-
-# Sidebar User Info
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Xin chào: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"):
@@ -64,18 +58,21 @@ if st.sidebar.button("👋 Đăng Xuất"):
     st.rerun()
 st.sidebar.divider()
 
-# ==========================================
-# 🛡️ BẢO MẬT & BẢO TRÌ (GIỮ NGUYÊN TỪ V13.2)
-# ==========================================
-MAINTENANCE_MODE = False 
-if MAINTENANCE_MODE:
-    st.title("🚧 HỆ THỐNG ĐANG BẢO TRÌ")
-    st.warning("Hệ thống Thăng Long đang được nâng cấp. Vui lòng quay lại sau!")
-    st.stop()
+st.markdown("""
+<style>
+    h1, h2, h3 {color: #64b5f6 !important;}
+    [data-testid="stMetricValue"] {font-size: 1.4rem !important; font-weight: bold !important;}
+    .rec-card {background-color: #1f2937; border: 1px solid #374151; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px;}
+    .score-circle {display: inline-block; width: 60px; height: 60px; line-height: 60px; border-radius: 50%; font-size: 24px; font-weight: bold; color: white; margin-bottom: 10px;}
+    .green-zone {background-color: #10b981; box-shadow: 0 0 15px #10b981;}
+    .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
+    .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
+    .news-item {padding: 10px; border-bottom: 1px solid #444; margin-bottom: 10px;}
+    .news-title {font-weight: bold; font-size: 16px; text-decoration: none; color: #90caf9;}
+    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #6b7280; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151; z-index: 100;}
+</style>
+""", unsafe_allow_html=True)
 
-# ==========================================
-# 📂 KHO MÃ CỔ PHIẾU
-# ==========================================
 STOCK_GROUPS = {
     "🏆 VN30": "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,POW,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE",
     "🏦 Ngân Hàng": "VCB,BID,CTG,TCB,VPB,MBB,ACB,STB,HDB,VIB,TPB,SHB,EIB,MSB,OCB,LPB,SSB",
@@ -88,60 +85,21 @@ STOCK_GROUPS = {
     "⚡ Điện": "POW,REE,NT2,PC1,GEG,HDG,GEX"
 }
 
-# ==========================================
-# 🎨 GIAO DIỆN PRO
-# ==========================================
-st.markdown("""
-<style>
-    h1, h2, h3 {color: #64b5f6 !important;}
-    [data-testid="stMetricValue"] {font-size: 1.4rem !important; font-weight: bold !important;}
-    [data-testid="stMetricLabel"] {font-size: 1rem !important; opacity: 0.8;}
-    .rec-card {background-color: #1f2937; border: 1px solid #374151; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px;}
-    .rec-card h3 {color: white !important;} 
-    .score-circle {display: inline-block; width: 60px; height: 60px; line-height: 60px; border-radius: 50%; font-size: 24px; font-weight: bold; color: white; margin-bottom: 10px;}
-    .green-zone {background-color: #10b981; box-shadow: 0 0 15px #10b981;}
-    .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
-    .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
-    .news-item {padding: 10px; border-bottom: 1px solid #444; margin-bottom: 10px;}
-    .news-item:hover {background-color: rgba(100, 181, 246, 0.1); border-radius: 5px;}
-    .news-title {font-weight: bold; font-size: 16px; text-decoration: none; display: block; margin-bottom: 5px; color: inherit !important;}
-    .news-meta {font-size: 12px; color: #888;}
-    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #6b7280; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151; z-index: 100;}
-</style>
-""", unsafe_allow_html=True)
-
-TRANS_MAP = {
-    'Total Revenue': '1. Tổng Doanh Thu', 'Operating Revenue': '   - Doanh thu HĐ',
-    'Cost Of Revenue': '2. Giá Vốn Hàng Bán', 'Gross Profit': '3. Lợi Nhuận Gộp',
-    'Operating Expense': '4. Chi Phí Hoạt Động', 'Operating Income': '5. Lợi Nhuận Từ HĐKD',
-    'Net Income': '9. Lợi Nhuận Sau Thuế', 'EBITDA': '10. EBITDA', 'Basic EPS': '11. EPS Cơ Bản',
-    'Total Assets': 'A. TỔNG TÀI SẢN', 'Current Assets': '   I. Tài sản Ngắn hạn',
-    'Cash And Cash Equivalents': '      1. Tiền & Tương đương tiền', 'Inventory': '      2. Hàng Tồn kho',
-    'Total Liabilities Net Minority Interest': 'B. TỔNG NỢ', 'Stockholders Equity': 'C. VỐN CHỦ SỞ HỮU',
-    'Operating Cash Flow': '1. Dòng Tiền KD', 'Investing Cash Flow': '2. Dòng Tiền Đầu Tư',
-    'Financing Cash Flow': '3. Dòng Tiền Tài Chính', 'Free Cash Flow': '-> Dòng Tiền Tự Do'
-}
+TRANS_MAP = {'Total Revenue': '1. Tổng Doanh Thu', 'Net Income': '2. Lợi Nhuận Sau Thuế', 'Total Assets': '3. Tổng Tài Sản', 'Stockholders Equity': '4. Vốn Chủ Sở Hữu', 'Operating Cash Flow': '5. Dòng Tiền KD'}
 
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
-
-# --- NÚT CLEAR CACHE ---
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"):
-    st.cache_data.clear()
-    st.rerun()
+    st.cache_data.clear(); st.rerun()
 
 # ==========================================
 # 🧠 XỬ LÝ DỮ LIỆU
 # ==========================================
-
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
     try:
         rss_url = f"https://news.google.com/rss/search?q=cổ+phiếu+{symbol}&hl=vi&gl=VN&ceid=VN:vi"
         feed = feedparser.parse(rss_url)
-        clean_news = []
-        for entry in feed.entries[:10]:
-            clean_news.append({'title': entry.title, 'link': entry.link, 'published': entry.get('published', ''), 'source': entry.get('source', {}).get('title', 'Google News')})
-        return clean_news
+        return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
     except: return []
 
 @st.cache_data(ttl=300)
@@ -177,9 +135,10 @@ def load_data_v13(ticker, time):
     try: holders = stock.major_holders; 
     except: holders = pd.DataFrame()
     
-    news_items = load_news_google(ticker)
-    return df_calc, df_chart, info, fin, bal, cash, holders, news_items
+    news = load_news_google(ticker)
+    return df_calc, df_chart, info, fin, bal, cash, holders, news
 
+# --- HÀM PHÂN TÍCH KỸ THUẬT (V13.2 CŨ) ---
 def analyze_smart(df):
     if df.empty or len(df) < 52: return None
     now = df.iloc[-1]
@@ -187,9 +146,7 @@ def analyze_smart(df):
     rsi = now['RSI_14']; macd = now['MACD_12_26_9']; macds = now['MACDs_12_26_9']
     adx = now['ADX_14']; atr = now['ATRr_14']
     vol_now = now['Volume']; vol_avg = df['Volume'].rolling(20).mean().iloc[-1]
-    high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
-    high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
-
+    
     score = 0; pros = []; cons = []
     if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
     if adx > 25: score += 1; pros.append(f"ADX Mạnh ({adx:.0f})")
@@ -197,8 +154,7 @@ def analyze_smart(df):
     elif rsi > 70: score -= 2; cons.append("RSI Quá mua")
     if macd > macds: score += 1; pros.append("MACD cắt lên")
     else: score -= 1; cons.append("MACD cắt xuống")
-    if close > tenkan and close > kijun: score += 1; pros.append("Ichimoku Tốt")
-    if vol_now > vol_avg*1.2 and close > df.iloc[-2]['Close']: score += 2; pros.append("Tiền vào mạnh")
+    if vol_now > vol_avg*1.2: score += 1; pros.append("Tiền vào")
     
     final_score = max(0, min(10, 5 + score))
     action, zone = "QUAN SÁT", "yellow-zone"
@@ -208,6 +164,39 @@ def analyze_smart(df):
     
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": close - 2*atr, "target": close + 3*atr}
 
+# --- HÀM PHÂN TÍCH CƠ BẢN (MỚI THÊM VÀO) ---
+def analyze_fundamental(info):
+    if not info: return None
+    score = 0; details = []
+    
+    # P/E
+    pe = info.get('trailingPE', 0)
+    if pe is None: pe = 0
+    if 0 < pe < 12: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
+    elif 12 <= pe <= 20: score += 1; details.append(f"P/E Hợp lý ({pe:.1f}x)")
+    else: details.append(f"P/E Khá cao ({pe:.1f}x)")
+    
+    # ROE
+    roe = info.get('returnOnEquity', 0)
+    if roe is None: roe = 0
+    if roe > 0.15: score += 2; details.append(f"ROE Tốt ({roe:.1%})")
+    
+    # Debt
+    debt = info.get('debtToEquity', 0)
+    if debt is None: debt = 0
+    if debt < 50: score += 1; details.append("Nợ vay thấp")
+
+    # Xếp hạng
+    health, color = ("TRUNG BÌNH", "#f59e0b") # Mặc định
+    if score >= 4: health, color = ("KIM CƯƠNG 💎", "#10b981")
+    elif score >= 2: health, color = ("VỮNG MẠNH 💪", "#3b82f6")
+    elif score < 2: health, color = ("YẾU KÉM ⚠️", "#ef4444")
+    
+    return {"health": health, "color": color, "details": details}
+
+# ==========================================
+# 🛠️ HÀM HỖ TRỢ HIỂN THỊ
+# ==========================================
 def clean_table(df):
     if df.empty: return pd.DataFrame()
     valid = [i for i in df.index if i in TRANS_MAP]
@@ -215,7 +204,7 @@ def clean_table(df):
     df_new = df.loc[valid].rename(index=TRANS_MAP)
     for col in df_new.columns:
         for idx in df_new.index:
-            if "EPS" not in idx and isinstance(df_new.loc[idx, col], (int, float)): df_new.loc[idx, col] = df_new.loc[idx, col] / 1e9
+            if isinstance(df_new.loc[idx, col], (int, float)): df_new.loc[idx, col] = df_new.loc[idx, col] / 1e9
     return df_new
 
 def safe_fmt(val):
@@ -246,10 +235,9 @@ def render_pro_chart(df, symbol):
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
-    col_input, col_ref = st.columns([3, 1])
-    with col_input:
-        symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
-    with col_ref:
+    c1, c2 = st.columns([3, 1])
+    with c1: symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
+    with c2: 
         if st.button("🔄 Cập nhật giá"): st.cache_data.clear(); st.rerun()
 
     period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
@@ -258,29 +246,51 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
         df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v13(symbol, period)
         if not df_chart.empty:
             st.title(f"💎 {info.get('longName', symbol)}")
-            strat = analyze_smart(df_calc)
+            
+            # CHẠY PHÂN TÍCH
+            strat = analyze_smart(df_calc)   # Kỹ thuật V13
+            fund = analyze_fundamental(info) # Cơ bản (Mới thêm)
+
+            # HIỂN THỊ KẾT QUẢ (2 CỘT)
             if strat:
-                c1, c2 = st.columns([1, 2])
-                with c1: st.markdown(f'<div class="rec-card"><div class="score-circle {strat["zone"]}">{strat["score"]}</div><h3>{strat["action"]}</h3></div>', unsafe_allow_html=True)
-                with c2:
-                    k1, k2 = st.columns(2)
-                    with k1: 
+                col_tech, col_fund = st.columns(2)
+                
+                # CỘT 1: KỸ THUẬT (V13)
+                with col_tech:
+                    st.markdown(f"""
+                    <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
+                        <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
+                        <div class="score-circle {strat['zone']}">{strat['score']}</div>
+                        <h2 style="margin:0">{strat['action']}</h2>
+                        <p style="color:gray; font-size:12px">Định thời điểm Mua/Bán</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.info(f"🎯 Mục tiêu: {strat['target']:,.0f} | 🛑 Cắt lỗ: {strat['stop']:,.0f}")
+                    with st.expander("🔍 Chi tiết Kỹ Thuật", expanded=True):
                         for p in strat['pros']: st.success(f"+ {p}")
-                    with k2: 
                         for c in strat['cons']: st.error(f"- {c}")
-                    st.divider()
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Giá Hiện Tại", f"{strat['entry']:,.0f}")
-                    m2.metric("Cắt Lỗ (Gợi ý)", f"{strat['stop']:,.0f}")
-                    m3.metric("Mục Tiêu (Gợi ý)", f"{strat['target']:,.0f}")
+
+                # CỘT 2: CƠ BẢN (MỚI)
+                with col_fund:
+                    if fund:
+                        st.markdown(f"""
+                        <div class="rec-card" style="border-left: 5px solid {fund['color']};">
+                            <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
+                            <div style="font-size: 32px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
+                            <p style="color:gray; font-size:12px">Chất lượng Doanh nghiệp</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        with st.expander("🔍 Chi tiết Cơ Bản", expanded=True):
+                            for d in fund['details']: st.write(f"✅ {d}")
+                    else: st.warning("Chưa có dữ liệu cơ bản")
 
             t1, t2, t3, t4 = st.tabs(["📊 Biểu Đồ Kỹ Thuật", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             with t1: render_pro_chart(df_chart, symbol)
             with t2:
-                for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]} | 🔗 {item["source"]}</div></div>', unsafe_allow_html=True)
+                for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
             with t3:
                 c_left, c_right = st.columns(2)
-                with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True); st.subheader("Dòng Tiền"); st.dataframe(clean_table(cash).style.format("{:,.2f}"), use_container_width=True)
+                with c_left: st.subheader("Kinh Doanh"); st.dataframe(clean_table(fin).style.format("{:,.2f}"), use_container_width=True)
                 with c_right: st.subheader("Cân Đối Kế Toán"); st.dataframe(clean_table(bal).style.format("{:,.2f}"), use_container_width=True)
             with t4:
                 c1, c2 = st.columns([2, 1])
@@ -303,7 +313,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
         inp = st.text_area("Danh sách mã:", value="HPG, VCB, SSI, VND, FPT, MWG, DIG", height=100)
         if st.button("🚀 QUÉT DANH SÁCH TỰ NHẬP"):
             ticks = [x.strip().upper() for x in inp.split(',') if x.strip()]
-            if len(ticks) > 30: ticks = ticks[:30]; st.warning("⚠️ Chỉ quét 30 mã đầu tiên.")
             res = []
             bar = st.progress(0, "Đang xử lý...")
             for i, t in enumerate(ticks):
@@ -316,12 +325,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
             bar.empty()
             if res:
                 df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
-                def color_act(val):
-                    if 'MUA' in val: return 'color: #10b981; font-weight: bold'
-                    if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
-                    return 'color: #f59e0b'
-                st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
-            else: st.error("Không tìm thấy dữ liệu.")
+                st.dataframe(df_res, use_container_width=True)
 
     for tab, name in zip(tabs[1:], list(STOCK_GROUPS.keys())):
         with tab:
@@ -339,11 +343,8 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 bar.empty()
                 if res:
                     df_res = pd.DataFrame(res).sort_values(by="Điểm", ascending=False)
-                    def color_act(val):
-                        if 'MUA' in val: return 'color: #10b981; font-weight: bold'
-                        if 'BÁN' in val: return 'color: #ef4444; font-weight: bold'
-                        return 'color: #f59e0b'
-                    st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
-                    if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
+                    if not df_res.empty:
+                        st.dataframe(df_res, use_container_width=True)
+                        if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime Multi-User</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 Plus (Stable + Fundamental)</div>', unsafe_allow_html=True)
