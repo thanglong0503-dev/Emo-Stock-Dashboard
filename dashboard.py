@@ -7,7 +7,7 @@ import pandas_ta as ta
 from datetime import datetime
 
 # --- CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Intelligent V7", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Intelligent V7.2", page_icon="🐲")
 
 # CSS: Giao diện & Badge tín hiệu
 st.markdown("""
@@ -23,20 +23,39 @@ st.markdown("""
     
     /* News Card */
     .news-card {background-color: #1e1e1e; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #2979ff;}
-    .news-title {font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 5px;}
+    .news-title {font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 5px; text-decoration: none;}
     .news-meta {font-size: 12px; color: #aaa;}
     
     .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #0e1117; color: #888; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #333;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- TỪ ĐIỂN TÀI CHÍNH ---
+# --- TỪ ĐIỂN TÀI CHÍNH (KHÔI PHỤC TỪ V6 - 35 CHỈ SỐ) ---
 TRANS_MAP = {
-    'Total Revenue': 'Tổng Doanh Thu', 'Operating Revenue': 'Doanh thu HĐ',
-    'Gross Profit': 'Lợi Nhuận Gộp', 'Net Income': 'Lợi Nhuận Sau Thuế',
-    'Basic EPS': 'EPS Cơ Bản', 'Total Assets': 'Tổng Tài Sản',
-    'Total Liabilities Net Minority Interest': 'Tổng Nợ', 'Stockholders Equity': 'Vốn Chủ Sở Hữu',
-    'Operating Cash Flow': 'Dòng Tiền KD'
+    # 1. KẾT QUẢ KINH DOANH
+    'Total Revenue': '1. Tổng Doanh Thu',
+    'Operating Revenue': '   - Doanh thu Hoạt động',
+    'Cost Of Revenue': '2. Giá Vốn Hàng Bán',
+    'Gross Profit': '3. Lợi Nhuận Gộp',
+    'Operating Expense': '4. Chi Phí Hoạt Động',
+    'Operating Income': '5. Lợi Nhuận Từ HĐKD',
+    'Net Income': '9. Lợi Nhuận Sau Thuế (Lãi Ròng)',
+    'EBITDA': '10. EBITDA',
+    'Basic EPS': '11. EPS Cơ Bản (VND)',
+    
+    # 2. CÂN ĐỐI KẾ TOÁN
+    'Total Assets': 'A. TỔNG TÀI SẢN',
+    'Current Assets': '   I. Tài sản Ngắn hạn',
+    'Cash And Cash Equivalents': '      1. Tiền & Tương đương tiền',
+    'Inventory': '      2. Hàng Tồn kho',
+    'Total Liabilities Net Minority Interest': 'B. TỔNG NỢ PHẢI TRẢ',
+    'Stockholders Equity': 'C. VỐN CHỦ SỞ HỮU',
+    
+    # 3. DÒNG TIỀN (V7 CŨ BỊ THIẾU CÁI NÀY)
+    'Operating Cash Flow': '1. Dòng Tiền Từ Kinh Doanh',
+    'Investing Cash Flow': '2. Dòng Tiền Từ Đầu Tư',
+    'Financing Cash Flow': '3. Dòng Tiền Tài Chính',
+    'Free Cash Flow': '-> Dòng Tiền Tự Do (FCF)'
 }
 
 # --- SIDEBAR ---
@@ -45,7 +64,7 @@ st.sidebar.success("👑 **Chủ sở hữu: Thăng Long**")
 
 mode = st.sidebar.radio("Chọn Chế Độ:", ["🔍 Phân Tích 1 Mã", "⚡ Lọc Cổ Phiếu (Scanner)"])
 
-# --- HÀM TÍNH TÍN HIỆU (AI SIGNAL) ---
+# --- HÀM TÍNH TÍN HIỆU ---
 def get_signal(df):
     if df.empty or len(df) < 20: return "Không đủ dữ liệu", "gray"
     
@@ -56,7 +75,6 @@ def get_signal(df):
     signal = "NẮM GIỮ (HOLD)"
     color = "hold-signal"
     
-    # Logic Mua/Bán
     if rsi < 30: 
         signal = "MUA MẠNH (Quá bán)"
         color = "buy-signal"
@@ -72,14 +90,14 @@ def get_signal(df):
         
     return signal, color
 
-# --- HÀM TẢI DỮ LIỆU (ĐÃ SỬA LỖI CACHE) ---
+# --- HÀM TẢI DỮ LIỆU (KHÔI PHỤC LẤY CASHFLOW) ---
 @st.cache_data(ttl=300)
-def load_data_v7(ticker, time):
+def load_data_v7_2(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
     interval = "15m" if time in ["1d", "5d"] else "1d"
     
-    # 1. History & Indicators
+    # 1. History
     try:
         df = stock.history(period=time, interval=interval)
         if len(df) > 20:
@@ -90,13 +108,15 @@ def load_data_v7(ticker, time):
             df.ta.macd(append=True)
     except: df = pd.DataFrame()
 
-    # 2. Other Data
+    # 2. Finance Data
     try: info = stock.info
     except: info = {}
     try: fin = stock.financials
     except: fin = pd.DataFrame()
     try: bal = stock.balance_sheet
     except: bal = pd.DataFrame()
+    try: cash = stock.cashflow # <--- ĐÃ THÊM LẠI
+    except: cash = pd.DataFrame()
     try: holders = stock.major_holders
     except: holders = pd.DataFrame()
     
@@ -104,10 +124,9 @@ def load_data_v7(ticker, time):
     try: news = stock.news
     except: news = []
 
-    # 👇 QUAN TRỌNG: KHÔNG TRẢ VỀ 'stock' OBJECT NỮA
-    return df, info, fin, bal, holders, news
+    return df, info, fin, bal, cash, holders, news
 
-# --- HÀM HỖ TRỢ ---
+# --- HÀM HỖ TRỢ HIỂN THỊ ---
 def clean_table(df):
     if df.empty: return pd.DataFrame()
     valid = [i for i in df.index if i in TRANS_MAP]
@@ -120,10 +139,10 @@ def clean_table(df):
     return df_new
 
 # ==========================================
-# GIAO DIỆN 1: PHÂN TÍCH 1 MÃ
+# GIAO DIỆN CHÍNH
 # ==========================================
 if mode == "🔍 Phân Tích 1 Mã":
-    symbol = st.sidebar.text_input("Mã CP", value="FPT").upper()
+    symbol = st.sidebar.text_input("Mã CP", value="VCB").upper()
     period = st.sidebar.selectbox("Thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=3)
     
     st.sidebar.markdown("---")
@@ -133,8 +152,7 @@ if mode == "🔍 Phân Tích 1 Mã":
     show_macd = st.sidebar.checkbox("MACD", True)
     
     if symbol:
-        # 👇 ĐÃ SỬA: CHỈ HỨNG 6 BIẾN (Bỏ stock_obj đi)
-        hist, info, fin, bal, holders, news = load_data_v7(symbol, period)
+        hist, info, fin, bal, cash, holders, news = load_data_v7_2(symbol, period)
         
         if not hist.empty:
             # HEADER
@@ -152,20 +170,26 @@ if mode == "🔍 Phân Tích 1 Mã":
             m1.metric("Giá", f"{cur:,.0f}", f"{chg:.2f}%")
             m2.metric("RSI (14)", f"{hist['RSI_14'].iloc[-1]:.1f}" if 'RSI_14' in hist.columns else "N/A")
             m3.metric("P/E", f"{info.get('trailingPE', 'N/A')}")
-            m4.metric("Vốn hóa", f"{info.get('marketCap',0)/1e9:,.0f} Tỷ")
+            
+            # Tính lại Biên Lãi Ròng như V6
+            try:
+                rev = fin.loc['Total Revenue'].iloc[0]
+                profit = fin.loc['Net Income'].iloc[0]
+                margin = (profit/rev)*100
+                m4.metric("Biên Lãi Ròng", f"{margin:.1f}%")
+            except: m4.metric("Vốn hóa", f"{info.get('marketCap',0)/1e9:,.0f} Tỷ")
             
             st.divider()
             
-            # TABS
-            t1, t2, t3, t4 = st.tabs(["📊 Biểu đồ", "📰 Tin tức", "💰 Tài chính", "🏢 Hồ sơ"])
+            t1, t2, t3, t4 = st.tabs(["📊 Biểu đồ", "📰 Tin tức", "💰 Tài chính (V6)", "🏢 Hồ sơ (V6)"])
             
-            with t1: # Chart
+            # TAB 1: CHART (GIỮ NGUYÊN)
+            with t1:
                 fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[0.6, 0.2, 0.2], vertical_spacing=0.02)
                 fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], name='Giá'), row=1, col=1)
                 
                 if show_ma:
                     if 'SMA_20' in hist.columns: fig.add_trace(go.Scatter(x=hist.index, y=hist['SMA_20'], line=dict(color='orange'), name='MA20'), row=1, col=1)
-                
                 if show_bb and 'BBU_20_2.0' in hist.columns:
                      fig.add_trace(go.Scatter(x=hist.index, y=hist['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
                      fig.add_trace(go.Scatter(x=hist.index, y=hist['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
@@ -181,49 +205,80 @@ if mode == "🔍 Phân Tích 1 Mã":
                 fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, margin=dict(l=0,r=0,t=0,b=0))
                 st.plotly_chart(fig, use_container_width=True)
                 
-            with t2: # News
-                st.subheader(f"Tin tức mới nhất về {symbol}")
+            # TAB 2: NEWS (ĐÃ SỬA LỖI & THÊM FALLBACK)
+            with t2:
+                st.subheader(f"Tin tức: {symbol}")
+                has_news = False
                 if news:
                     for n in news:
                         try:
-                            pub_time = datetime.fromtimestamp(n.get('providerPublishTime', 0)).strftime('%d/%m/%Y %H:%M')
-                            st.markdown(f"""
-                            <div class="news-card">
-                                <a href="{n.get('link')}" target="_blank" style="text-decoration:none;">
-                                    <div class="news-title">{n.get('title')}</div>
-                                </a>
-                                <div class="news-meta">🕒 {pub_time} | ✍️ {n.get('publisher')}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            # Kiểm tra kỹ dữ liệu trước khi in
+                            title = n.get('title')
+                            link = n.get('link')
+                            pub = n.get('publisher', 'Yahoo')
+                            ts = n.get('providerPublishTime', 0)
+                            
+                            if title and link and ts > 0: # Chỉ hiện tin hợp lệ
+                                has_news = True
+                                date_str = datetime.fromtimestamp(ts).strftime('%d/%m %H:%M')
+                                st.markdown(f"""
+                                <div class="news-card">
+                                    <a href="{link}" target="_blank"><div class="news-title">{title}</div></a>
+                                    <div class="news-meta">🕒 {date_str} | ✍️ {pub}</div>
+                                </div>""", unsafe_allow_html=True)
                         except: pass
-                else:
-                    st.info("Không tìm thấy tin tức từ nguồn Yahoo Finance.")
-            
-            with t3: # Finance
-                c1, c2 = st.columns(2)
-                with c1: st.dataframe(clean_table(fin).style.format("{:,.2f}"))
-                with c2: st.dataframe(clean_table(bal).style.format("{:,.2f}"))
                 
-            with t4: # Profile
-                st.write(info.get('longBusinessSummary'))
-                # Fix lỗi cột Cổ đông
-                if not holders.empty:
-                    try:
-                         if holders.shape[1] == 2: holders.columns = ['% Nắm giữ', 'Tên']
-                         st.dataframe(holders, use_container_width=True)
-                    except: st.dataframe(holders)
+                # Nếu không có tin (hoặc tin lỗi), hiện nút tìm kiếm Google
+                if not has_news:
+                    st.warning(f"Yahoo Finance chưa cập nhật tin tức cho {symbol}.")
+                    st.markdown(f"""
+                    👉 **Tra cứu nhanh tại:**
+                    - [Google News: {symbol}](https://www.google.com/search?q=tin+tuc+co+phieu+{symbol}&tbm=nws)
+                    - [CafeF: {symbol}](https://cafef.vn/tim-kiem/{symbol}.chn)
+                    """)
+            
+            # TAB 3: FINANCE (KHÔI PHỤC V6)
+            with t3:
+                st.info("ℹ️ Đơn vị: Tỷ VNĐ (Dữ liệu Yahoo)")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.subheader("📋 Kết quả Kinh doanh")
+                    st.dataframe(clean_table(fin).style.format("{:,.2f}"))
+                    st.subheader("💵 Dòng tiền (Cashflow)")
+                    st.dataframe(clean_table(cash).style.format("{:,.2f}"))
+                with c2:
+                    st.subheader("⚖️ Cân đối Kế toán")
+                    st.dataframe(clean_table(bal).style.format("{:,.2f}"))
+            
+            # TAB 4: PROFILE (KHÔI PHỤC V6)
+            with t4:
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    st.markdown("### Mô tả doanh nghiệp")
+                    st.write(info.get('longBusinessSummary', 'Chưa có mô tả.'))
+                with c2:
+                    try: emp = f"{info.get('fullTimeEmployees', 0):,}" 
+                    except: emp = "N/A"
+                    st.success(f"👥 **Nhân sự:** {emp}")
+                    st.info(f"🏭 **Ngành:** {info.get('industry', 'N/A')}")
+                    st.warning(f"🌐 **Web:** {info.get('website', 'N/A')}")
+                    
+                    st.divider()
+                    st.subheader("👑 Cổ đông lớn")
+                    if not holders.empty:
+                        try:
+                             if holders.shape[1] == 2: holders.columns = ['% Nắm giữ', 'Tên']
+                             st.dataframe(holders, use_container_width=True)
+                        except: st.dataframe(holders)
 
-# ==========================================
-# GIAO DIỆN 2: SCANNER (BỘ LỌC)
-# ==========================================
 elif mode == "⚡ Lọc Cổ Phiếu (Scanner)":
+    # (GIỮ NGUYÊN CODE SCANNER V7)
     st.title("⚡ Máy Quét Tín Hiệu")
-    input_str = st.text_area("Nhập danh sách mã (VD: HPG, VCB, SSI)", value="HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN")
+    input_str = st.text_area("Nhập danh sách mã", value="HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN")
     if st.button("🚀 QUÉT NGAY"):
         tickers = [x.strip().upper() for x in input_str.split(',')]
         results = []
         my_bar = st.progress(0, text="Đang khởi động...")
-        
         for i, ticker in enumerate(tickers):
             my_bar.progress((i + 1) / len(tickers), text=f"Đang soi: {ticker}...")
             try:
@@ -232,21 +287,12 @@ elif mode == "⚡ Lọc Cổ Phiếu (Scanner)":
                 if len(df) > 20:
                     df.ta.rsi(length=14, append=True)
                     df.ta.sma(length=20, append=True)
-                    
                     price = df['Close'].iloc[-1]
                     rsi = df['RSI_14'].iloc[-1]
                     sig_text, sig_color = get_signal(df)
-                    
-                    results.append({
-                        "Mã": ticker,
-                        "Giá": f"{price:,.0f}",
-                        "RSI": round(rsi, 1),
-                        "Tín hiệu": sig_text
-                    })
+                    results.append({"Mã": ticker, "Giá": f"{price:,.0f}", "RSI": round(rsi, 1), "Tín hiệu": sig_text})
             except: pass
-        
         my_bar.empty()
-        
         if results:
             res_df = pd.DataFrame(results)
             def highlight_signal(val):
@@ -257,7 +303,5 @@ elif mode == "⚡ Lọc Cổ Phiếu (Scanner)":
             st.dataframe(res_df.style.map(highlight_signal, subset=['Tín hiệu']), use_container_width=True)
             cnt = len([x for x in results if 'MUA' in x['Tín hiệu']])
             st.success(f"✅ Tìm thấy {cnt} mã có tín hiệu MUA!")
-        else:
-            st.error("Không quét được dữ liệu.")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V7.1 - Stable Release</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V7.2 - Perfect Hybrid</div>', unsafe_allow_html=True)
