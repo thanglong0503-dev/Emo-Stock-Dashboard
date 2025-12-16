@@ -8,10 +8,10 @@ import feedparser
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Royal V15.1", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Royal V15.2", page_icon="🐲")
 
 # ==========================================
-# 🎨 GIAO DIỆN HOÀNG GIA (ROYAL UI - V15.1)
+# 🎨 GIAO DIỆN HOÀNG GIA (ROYAL UI - V15.2)
 # ==========================================
 st.markdown("""
 <style>
@@ -150,9 +150,9 @@ def analyze_smart(df):
     high9 = df['High'].rolling(9).max().iloc[-1]; low9 = df['Low'].rolling(9).min().iloc[-1]; tenkan = (high9 + low9)/2
     high26 = df['High'].rolling(26).max().iloc[-1]; low26 = df['Low'].rolling(26).min().iloc[-1]; kijun = (high26 + low26)/2
 
-    # --- ĐÃ FIX LỖI TẠI DÒNG NÀY ---
+    # --- SỬA LỖI VALUE ERROR TẠI ĐÂY ---
     score = 5; pros = []; cons = []
-    # -------------------------------
+    # -----------------------------------
 
     if close > ma20 and close > ma50: score += 2; pros.append("Uptrend")
     else: score -=1
@@ -285,14 +285,15 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             if tech_res:
                 g1, g2 = st.columns(2)
                 with g1:
-                    gauge_chart = plot_gauge(tech_res['score'], tech_res['action'])
+                    # --- SỬA LỖI TYPE ERROR TẠI ĐÂY (dùng .to_html) ---
+                    gauge_html = plot_gauge(tech_res['score'], tech_res['action']).to_html(full_html=False, include_plotlyjs='cdn', config={'displayModeBar': False})
                     metrics_html = f"""<div style="display: flex; justify-content: space-around; margin-top: 15px; font-weight: 600;"><div>🎯 Giá: {tech_res['entry']:,.0f}</div><div>🛑 Cắt: {tech_res['stop']:,.0f}</div><div>🚀 Tiêu: {tech_res['target']:,.0f}</div></div>"""
-                    create_modern_card("Sức Mạnh Kỹ Thuật", st.plotly_chart(gauge_chart, use_container_width=True, output_format="div") + metrics_html, icon="🔭")
+                    create_modern_card("Sức Mạnh Kỹ Thuật", gauge_html + metrics_html, icon="🔭")
 
                 with g2:
-                    radar_chart = plot_radar(fund_scores)
+                    radar_html = plot_radar(fund_scores).to_html(full_html=False, include_plotlyjs='cdn', config={'displayModeBar': False})
                     fund_metrics_html = f"""<div style="text-align: center; margin-top: 15px; color: gray; font-size: 0.9rem;">P/E: {info.get('trailingPE','N/A')} | EPS: {info.get('trailingEps','N/A')}</div>"""
-                    create_modern_card("Sức Khỏe Doanh Nghiệp", st.plotly_chart(radar_chart, use_container_width=True, output_format="div") + fund_metrics_html, icon="🏢")
+                    create_modern_card("Sức Khỏe Doanh Nghiệp", radar_html + fund_metrics_html, icon="🏢")
 
                 with st.expander("Xem chi tiết lý do khuyến nghị"):
                     k1, k2 = st.columns(2)
@@ -383,4 +384,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     st.dataframe(style_dataframe(df_res), use_container_width=True, height=500)
                     if df_res.iloc[0]['Điểm'] >= 8: st.balloons(); st.success(f"💎 SIÊU CỔ PHIẾU DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.1 - Stable Royal Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V15.2 - Bug Free Edition</div>', unsafe_allow_html=True)
