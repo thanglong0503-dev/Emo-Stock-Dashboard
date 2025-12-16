@@ -28,15 +28,32 @@ if "PASSWORD" in st.secrets:
         st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN & TỪ ĐIỂN
+# 🎨 GIAO DIỆN (ĐÃ FIX MÀU CHỮ LIGHT/DARK)
 # ==========================================
 st.markdown("""
 <style>
-    .main {background-color: #0e1117;}
+    /* 1. Ép buộc màu nền tối cho Container chính để đồng bộ */
+    .stApp {
+        background-color: #0e1117;
+        color: #e0e0e0;
+    }
+
+    /* 2. Sidebar tối */
+    [data-testid="stSidebar"] {
+        background-color: #111111;
+        border-right: 1px solid #333;
+    }
+
+    /* 3. Màu chữ tiêu đề luôn sáng */
     h1, h2, h3 {color: #64b5f6 !important;}
-    [data-testid="stMetricValue"] {font-size: 1.3rem !important; color: #e0e0e0;}
-    
-    /* Card Tín hiệu V9 */
+
+    /* 4. Metric (Chỉ số) */
+    [data-testid="stMetricValue"] {
+        font-size: 1.3rem !important;
+        color: #e0e0e0 !important; /* Màu trắng xám cho dễ nhìn */
+    }
+
+    /* 5. Card Khuyến nghị (Giữ nguyên) */
     .rec-card {
         background-color: #1f2937; border: 1px solid #374151;
         border-radius: 10px; padding: 20px; text-align: center;
@@ -50,14 +67,37 @@ st.markdown("""
     .green-zone {background-color: #10b981; box-shadow: 0 0 15px #10b981;}
     .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
     .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
-    
-    /* Tin tức */
-    .news-item {padding: 10px; border-bottom: 1px solid #333; margin-bottom: 10px;}
-    .news-item:hover {background-color: #2d3748; border-radius: 5px;}
-    
+
+    /* 6. TIN TỨC (FIX LỖI MÀU CHỮ Ở ĐÂY) */
+    .news-item {
+        background-color: #262730; /* Nền xám đậm cố định */
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #444;
+    }
+    .news-item:hover {
+        border-color: #64b5f6;
+    }
+    .news-title {
+        color: #ffffff !important; /* ÉP MÀU TRẮNG TUYỆT ĐỐI */
+        font-weight: bold;
+        font-size: 16px;
+        text-decoration: none;
+        display: block;
+        margin-bottom: 5px;
+    }
+    .news-meta {
+        color: #aaa !important; /* Ép màu xám sáng */
+        font-size: 12px;
+    }
+
+    /* 7. Footer */
     .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #111827; color: #6b7280; text-align: center; font-size: 12px; padding: 5px; border-top: 1px solid #374151;}
 </style>
 """, unsafe_allow_html=True)
+
+# ... (Phần code bên dưới giữ nguyên không thay đổi) ...
 
 # Từ điển Full 35 chỉ số (Của bản V6/V8 cũ)
 TRANS_MAP = {
@@ -335,3 +375,4 @@ elif mode == "⚡ Máy Quét (Scanner)":
             st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V10 - The Immortal</div>', unsafe_allow_html=True)
+
