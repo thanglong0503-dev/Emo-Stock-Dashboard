@@ -284,7 +284,7 @@ def analyze_fundamental(info):
     
     return {"health": health, "color": color, "details": details, "score": score}
     # --- Gọi hàm phân tích cơ bản ---
-            fund = analyze_fundamental(info)
+    fund = analyze_fundamental(info)
             
             # --- GIAO DIỆN WOW ---
             # Chia màn hình thành 2 cột: Trái (Kỹ thuật - Cũ), Phải (Cơ bản - Mới)
@@ -510,6 +510,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if df_res.iloc[0]['Điểm'] >= 7: st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V13.2 - Realtime</div>', unsafe_allow_html=True)
+
 
 
 
