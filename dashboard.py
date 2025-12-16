@@ -5,11 +5,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
-import streamlit.components.v1 as components # Thư viện để nhúng TradingView
+import streamlit.components.v1 as components 
 from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="Thăng Long Pro V11", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="Thăng Long Pro V11.1", page_icon="🐲")
 
 # ==========================================
 # 🛡️ PHẦN BẢO MẬT & BẢO TRÌ
@@ -28,20 +28,18 @@ if "PASSWORD" in st.secrets:
         st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN (ĐÃ TỐI ƯU)
+# 🎨 GIAO DIỆN
 # ==========================================
 st.markdown("""
 <style>
     h1, h2, h3 {color: #64b5f6 !important;}
     
-    /* Metric số liệu */
     [data-testid="stMetricValue"] {
         font-size: 1.4rem !important;
         font-weight: bold !important;
     }
     [data-testid="stMetricLabel"] {font-size: 1rem !important; opacity: 0.8;}
     
-    /* Card Khuyến nghị */
     .rec-card {
         background-color: #1f2937;
         border: 1px solid #374151;
@@ -59,7 +57,6 @@ st.markdown("""
     .red-zone {background-color: #ef4444; box-shadow: 0 0 15px #ef4444;}
     .yellow-zone {background-color: #f59e0b; box-shadow: 0 0 15px #f59e0b;}
     
-    /* Tin tức */
     .news-item {
         padding: 10px; border-bottom: 1px solid #444; margin-bottom: 10px;
     }
@@ -205,14 +202,13 @@ def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
-# --- HÀM RENDER TRADINGVIEW WIDGET (HÀNG XỊN) ---
+# --- HÀM RENDER TRADINGVIEW ĐÃ FIX TO BỰ ---
 def render_tradingview_widget(symbol):
-    # TradingView dùng mã sàn:mã ck (VD: HOSE:HPG)
-    tv_symbol = f"HOSE:{symbol}" 
+    tv_symbol = f"HOSE:{symbol}" # Mặc định HOSE cho chuẩn
     
     html_code = f"""
-    <div class="tradingview-widget-container" style="height:600px;width:100%">
-      <div id="tradingview_widget"></div>
+    <div class="tradingview-widget-container" style="height:800px;width:100%">
+      <div id="tradingview_widget" style="height:calc(100% - 32px);width:100%"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget(
@@ -224,7 +220,6 @@ def render_tradingview_widget(symbol):
       "theme": "dark",
       "style": "1",
       "locale": "vi_VN",
-      "toolbar_bg": "#f1f3f6",
       "enable_publishing": false,
       "allow_symbol_change": true,
       "container_id": "tradingview_widget"
@@ -233,14 +228,14 @@ def render_tradingview_widget(symbol):
       </script>
     </div>
     """
-    components.html(html_code, height=600)
+    components.html(html_code, height=800) # Tăng chiều cao lên 800px
 
 # ==========================================
 # 🖥️ GIAO DIỆN CHÍNH
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
     symbol = st.sidebar.text_input("Nhập Mã CP", value="HPG").upper()
-    period = st.sidebar.selectbox("Khung thời gian (Cho AI tính)", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
+    period = st.sidebar.selectbox("Khung thời gian (AI)", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_v11(symbol, period)
@@ -266,45 +261,36 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                         for c in strat['cons']: st.error(f"- {c}")
                     st.divider()
                     
-                    # ĐÃ ĐỔI TÊN THÀNH 'GIÁ HIỆN TẠI' CHO ĐỠ NHẦM
                     m1, m2, m3 = st.columns(3)
                     m1.metric("Giá Hiện Tại", f"{strat['entry']:,.0f}")
                     m2.metric("Cắt Lỗ (Gợi ý)", f"{strat['stop']:,.0f}")
                     m3.metric("Mục Tiêu (Gợi ý)", f"{strat['target']:,.0f}")
 
-            # ĐÃ THÊM TAB TRADINGVIEW PRO
+            # TABS
             t0, t1, t2, t3, t4 = st.tabs(["📈 TradingView (Pro)", "🤖 Biểu Đồ AI", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
             
-            # TAB 0: TRADINGVIEW WIDGET
             with t0:
-                st.caption("Biểu đồ tương tác chuyên nghiệp từ TradingView. Ngài có thể vẽ, đo, thêm chỉ báo tùy ý.")
+                # Gọi hàm vẽ biểu đồ to
                 render_tradingview_widget(symbol)
 
-            # TAB 1: CHART CŨ (Giữ lại để đối chiếu)
             with t1:
-                st.caption("Cấu hình bên Sidebar: MA, BB, MACD, RSI")
-                st.sidebar.markdown("---")
-                show_ma = st.sidebar.checkbox("Hiện MA", True)
-                show_bb = st.sidebar.checkbox("Hiện Bollinger", True)
-                show_macd = st.sidebar.checkbox("Hiện MACD", True)
-                show_rsi = st.sidebar.checkbox("Hiện RSI", True)
-                
+                st.caption("Biểu đồ phân tích kỹ thuật từ hệ thống AI (Plotly)")
+                # ... (Giữ nguyên code chart cũ) ...
                 row_h = [0.5, 0.15, 0.2, 0.15]
                 fig = make_subplots(rows=4, cols=1, shared_xaxes=True, row_heights=row_h, vertical_spacing=0.03)
                 fig.add_trace(go.Candlestick(x=df_chart.index, open=df_chart['Open'], high=df_chart['High'], low=df_chart['Low'], close=df_chart['Close'], name='Giá'), row=1, col=1)
-                if show_ma:
-                    if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
-                    if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
-                if show_bb and 'BBU_20_2.0' in df_chart.columns:
+                if 'SMA_20' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+                if 'SMA_50' in df_chart.columns: fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['SMA_50'], line=dict(color='#2979ff', width=1), name='MA50'), row=1, col=1)
+                if 'BBU_20_2.0' in df_chart.columns:
                      fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Up'), row=1, col=1)
                      fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='BB Low', fill='tonexty'), row=1, col=1)
                 colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df_chart.iterrows()]
                 fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['Volume'], marker_color=colors, name='Vol'), row=2, col=1)
-                if show_macd and 'MACD_12_26_9' in df_chart.columns:
+                if 'MACD_12_26_9' in df_chart.columns:
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACD_12_26_9'], line=dict(color='#22d3ee'), name='MACD'), row=3, col=1)
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['MACDs_12_26_9'], line=dict(color='#f472b6'), name='Signal'), row=3, col=1)
                     fig.add_trace(go.Bar(x=df_chart.index, y=df_chart['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
-                if show_rsi and 'RSI_14' in df_chart.columns:
+                if 'RSI_14' in df_chart.columns:
                     fig.add_trace(go.Scatter(x=df_chart.index, y=df_chart['RSI_14'], line=dict(color='#a78bfa', width=2), name='RSI'), row=4, col=1)
                     fig.add_hline(y=70, row=4, col=1, line_dash="dot", line_color="#ef4444")
                     fig.add_hline(y=30, row=4, col=1, line_dash="dot", line_color="#10b981")
@@ -348,7 +334,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     except: st.write("No Data")
 
 elif mode == "⚡ Máy Quét (Scanner)":
-    st.title("⚡ Máy Quét Cơ Hội V11")
+    st.title("⚡ Máy Quét Cơ Hội V11.1")
     inp = st.text_area("Mã CP:", "HPG, VCB, SSI, VND, FPT, MWG, VNM, MSN, DIG, CEO")
     if st.button("🚀 Quét"):
         ticks = [x.strip().upper() for x in inp.split(',')]
@@ -370,4 +356,4 @@ elif mode == "⚡ Máy Quét (Scanner)":
                 return 'color: #f59e0b'
             st.dataframe(df_res.style.map(color_act, subset=['Hành động']), use_container_width=True)
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V11 - Pro Trader</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V11.1 - Big Vision</div>', unsafe_allow_html=True)
