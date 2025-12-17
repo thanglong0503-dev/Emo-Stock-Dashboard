@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
 from datetime import datetime
-# --- THƯ VIỆN AI MỚI ---
+# --- THƯ VIỆN AI (PROPHET) ---
 try:
     from prophet import Prophet
     from prophet.plot import plot_plotly
@@ -15,7 +15,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong AI Prophet V20", page_icon="🔮")
+st.set_page_config(layout="wide", page_title="ThangLong AI Prophet V21", page_icon="🔮")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -82,7 +82,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# KHO DỮ LIỆU NGÀNH (V17)
 STOCK_GROUPS = {
     "🏆 VN30": "ACB,BCM,BID,BVH,CTG,FPT,GAS,GVR,HDB,HPG,MBB,MSN,MWG,PLX,POW,SAB,SHB,SSB,SSI,STB,TCB,TPB,VCB,VHM,VIB,VIC,VJC,VNM,VPB,VRE",
     "🏦 Ngân Hàng": "VCB,BID,CTG,TCB,VPB,MBB,ACB,STB,HDB,VIB,TPB,SHB,EIB,MSB,OCB,LPB,SSB",
@@ -116,7 +115,7 @@ def load_data_final(ticker, time):
     t = f"{ticker}.VN"
     stock = yf.Ticker(t)
     
-    # 1. TÍNH TOÁN (V19 Logic)
+    # 1. TÍNH TOÁN
     try:
         df_calc = stock.history(period="2y")
         if len(df_calc) > 100:
@@ -141,7 +140,7 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
     except: df_chart = pd.DataFrame()
 
-    # 3. DỮ LIỆU TÀI CHÍNH (QUARTERLY - CẬP NHẬT 2025)
+    # 3. DỮ LIỆU TÀI CHÍNH (QUARTERLY)
     try: info = stock.info
     except: info = {}
     try: fin = stock.quarterly_financials 
@@ -160,41 +159,52 @@ def load_data_final(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news
 
 # ==========================================
-# 🧠 AI PREDICTION (PROPHET MODEL)
+# 🧠 AI PREDICTION (ĐÃ NÂNG CẤP GIAO DIỆN)
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE:
         return None, "⚠️ Chưa cài thư viện Prophet. Hãy chạy: pip install prophet"
     
     try:
-        # Chuẩn bị dữ liệu cho Prophet (ds, y)
         df_prophet = df.reset_index()[['Date', 'Close']].copy()
         df_prophet.columns = ['ds', 'y']
-        df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None) # Xóa timezone để tránh lỗi
+        df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
         
-        # Huấn luyện
         m = Prophet(daily_seasonality=True)
         m.fit(df_prophet)
         
-        # Dự báo tương lai
         future = m.make_future_dataframe(periods=periods)
         forecast = m.predict(future)
         
-        # Vẽ biểu đồ
+        # Vẽ biểu đồ cơ bản
         fig = plot_plotly(m, forecast)
+        
+        # --- TÙY CHỈNH GIAO DIỆN MỚI (THÊM VÀO ĐÂY) ---
+        # 1. Đổi màu các chấm đen (dữ liệu thực) sang màu sáng nổi bật
+        fig.data[0].marker.color = '#22d3ee' # Màu xanh cyan sáng
+        # 2. Đổi màu đường dự báo trung bình
+        fig.data[1].line.color = '#f472b6' # Màu hồng
+
+        # 3. Cấu hình tương tác và giao diện Dark Mode giống biểu đồ chính
         fig.update_layout(
-            title="🔮 AI Dự Báo Xu Hướng (90 Ngày Tới)",
+            title=dict(text="🔮 AI Dự Báo Xu Hướng (90 Ngày Tới)", font=dict(size=20, color='white')),
             yaxis_title="Giá Dự Kiến",
             xaxis_title="Thời Gian",
             template="plotly_dark",
-            height=600
+            height=600,
+            hovermode="x unified", # Hiển thị thông tin khi di chuột
+            dragmode="pan",        # Chế độ kéo
+            margin=dict(l=0,r=0,t=50,b=0)
         )
+        # Thêm thanh trượt thời gian bên dưới
+        fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
+
         return fig, None
     except Exception as e:
         return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH (V19 LOGIC)
+# 🧠 PHÂN TÍCH (GIỮ NGUYÊN)
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 100: return None
@@ -213,7 +223,6 @@ def analyze_smart(df):
 
     score = 0; pros = []; cons = []
 
-    # VSA & Squeeze
     if vol_now > 1.5 * vol_avg and close > prev['Close']: score += 2; pros.append(f"🔥 VSA: Tiền vào ồ ạt")
     elif vol_now > 1.2 * vol_avg and close > prev['Close']: score += 1; pros.append("VSA: Dòng tiền tốt")
     if bandwidth < 0.10: 
@@ -221,7 +230,6 @@ def analyze_smart(df):
         if close > bb_upper: score += 2; pros.append("=> Breakout Lên!")
         elif close < bb_lower: score -= 2; cons.append("=> Breakdown Xuống!")
 
-    # Trend & Momentum
     if close > supertrend: score += 2; pros.append("SuperTrend: BÁO TĂNG")
     else: score -= 2; cons.append("SuperTrend: BÁO GIẢM")
     if ema34 > ema89 and close > ema34: score += 1; pros.append("EMA System: Xu hướng Tốt")
@@ -249,7 +257,7 @@ def analyze_fundamental(info, fin, bal, price_now):
         mkt_cap = info.get('marketCap', 0)
         pe = info.get('trailingPE', 0)
         if (pe is None or pe == 0) and not fin.empty and mkt_cap > 0:
-            net_income = fin.loc['Net Income'].iloc[0] * 4 # Quý hóa năm
+            net_income = fin.loc['Net Income'].iloc[0] * 4
             if net_income > 0: pe = mkt_cap / net_income
             
         equity = 0
@@ -264,7 +272,6 @@ def analyze_fundamental(info, fin, bal, price_now):
             revenue = fin.loc['Total Revenue'].iloc[0] * 4
             if revenue > 0: net_margin = net_income / revenue
             
-            # Tăng trưởng Quý này vs Quý trước
             if len(fin.columns) >= 2:
                 net_now = fin.loc['Net Income'].iloc[0]
                 net_prev = fin.loc['Net Income'].iloc[1]
@@ -334,7 +341,7 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🖥️ MAIN UI
+# 🖥️ MAIN UI (ĐÃ SỬA LỖI CRASH DỮ LIỆU RỖNG)
 # ==========================================
 if mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
@@ -348,7 +355,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_final(symbol, period)
         
-        # --- SỬA LỖI TẠI ĐÂY: Thêm kiểm tra df_calc không được rỗng ---
+        # --- KIỂM TRA DỮ LIỆU TRƯỚC KHI XỬ LÝ ĐỂ TRÁNH CRASH ---
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
@@ -388,12 +395,12 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                # CÁC TAB DỮ LIỆU
                 t1, t2, t3, t4, t5 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
                 with t1: render_pro_chart(df_chart, symbol)
                 with t2:
                     if PROPHET_AVAILABLE:
-                        fig_ai, msg_ai = run_prophet_forecast(df_calc)
+                        with st.spinner("🔮 AI đang tiên tri, xin chờ chút..."):
+                            fig_ai, msg_ai = run_prophet_forecast(df_calc)
                         if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
                         else: st.error(msg_ai)
                     else: st.warning("⚠️ Chưa cài thư viện Prophet")
@@ -411,14 +418,13 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
                     with c2:
                         st.info(f"Ngành: {info.get('industry', 'N/A')}")
                         st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
-            
             except Exception as e:
                 st.error(f"⚠️ Có lỗi khi xử lý dữ liệu mã {symbol}. Chi tiết: {e}")
         else:
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V20")
+    st.title("📊 Máy Quét Siêu Hạng V21")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -461,5 +467,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V20 Ultimate - AI Prophet Edition</div>', unsafe_allow_html=True)
-
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V21 Ultimate - AI Prophet Enhanced UI</div>', unsafe_allow_html=True)
