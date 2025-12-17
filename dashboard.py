@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas_ta as ta
@@ -113,7 +114,16 @@ def load_news_google(symbol):
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
     t = f"{ticker}.VN"
-    stock = yf.Ticker(t)
+    
+    # --- KỸ THUẬT NGỤY TRANG (FAKE BROWSER) ĐỂ LẤY TIN HỒ SƠ ---
+    try:
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+        stock = yf.Ticker(t, session=session)
+    except:
+        stock = yf.Ticker(t) # Fallback nếu ngụy trang thất bại
     
     # 1. TÍNH TOÁN
     try:
@@ -140,9 +150,12 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
     except: df_chart = pd.DataFrame()
 
-    # 3. DỮ LIỆU TÀI CHÍNH (QUARTERLY)
-    try: info = stock.info
+    # 3. DỮ LIỆU TÀI CHÍNH & HỒ SƠ
+    try: 
+        # Cố gắng lấy info với session giả lập
+        info = stock.info
     except: info = {}
+    
     try: fin = stock.quarterly_financials 
     except: fin = pd.DataFrame()
     try: bal = stock.quarterly_balance_sheet 
@@ -157,7 +170,6 @@ def load_data_final(ticker, time):
 
     news = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news
-
 # ==========================================
 # 🧠 AI PREDICTION (ĐÃ NÂNG CẤP GIAO DIỆN)
 # ==========================================
@@ -468,3 +480,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V21 Ultimate - AI Prophet Enhanced UI</div>', unsafe_allow_html=True)
+
