@@ -375,7 +375,7 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
 
     ### 🛠️ CÁCH SỬ DỤNG APP
     Có 3 chế độ chính ở menu bên trái:
-    1.  **📘 Hướng Dẫn & Quy Tắc:** Là trang Ngài đang xem.
+    1.  **📘 Hướng Dẫn & Quy Tắc:** Là trang đang xem.
     2.  **🔮 Phân Tích Chuyên Sâu:** Dùng để soi kỹ MỘT mã cổ phiếu (Biểu đồ, Tin tức, Báo cáo tài chính, AI Dự báo).
     3.  **📊 Bảng Giá & Máy Quét:** Dùng để lọc NHANH cả một ngành hoặc danh sách theo dõi để tìm cơ hội.
 
@@ -405,7 +405,7 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
     * Phần còn lại gồng lãi (trailing stop) cho đến khi SuperTrend báo bán hoặc gãy đường MA20.
 
     ---
-    > *Lời khuyên: Hãy dùng App như một người trợ lý TỈNH TÁO. Con số không biết nói dối, chỉ có cảm xúc của chúng ta đánh lừa chính mình. Chúc My Lord giao dịch thành công! 🛡️💰*
+    > *Lời khuyên: Hãy dùng App như một người trợ lý TỈNH TÁO. Con số không biết nói dối, chỉ có cảm xúc của chúng ta đánh lừa chính mình. Chúc giao dịch thành công! 🛡️💰*
     """)
 
 elif mode == "🔮 Phân Tích Chuyên Sâu":
@@ -540,3 +540,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V23 Ultimate - Instruction & Bold UI</div>', unsafe_allow_html=True)
+
