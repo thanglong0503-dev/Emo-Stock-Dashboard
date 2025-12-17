@@ -17,7 +17,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V22", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V23", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -48,32 +48,43 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO
+# 🎨 GIAO DIỆN DARK MODE PRO (V23 - ĐẬM ĐÀ HƠN)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"): st.session_state['logged_in'] = False; st.rerun()
 st.sidebar.divider()
 
+# --- CẬP NHẬT CSS CHO VIỀN VÀ CHỮ ĐẬM HƠN ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
     html, body, [class*="css"] {font-family: 'Inter', sans-serif !important; color: #e2e8f0;}
-    h1, h2, h3 {color: #ffffff !important; font-weight: 700 !important; text-shadow: 0px 0px 10px rgba(0,0,0,0.5);}
     
+    /* Tiêu đề đậm hơn */
+    h1, h2, h3 {color: #ffffff !important; font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(0,0,0,0.5);}
+    
+    /* Khung viền đậm hơn (2px và màu tối hơn) */
     .rec-card {
-        background-color: #1e293b; border: 1px solid #334155; 
-        border-radius: 12px; padding: 20px; text-align: center; 
-        margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        background-color: #1e293b; 
+        border: 2px solid #0f172a; /* Viền dày 2px màu tối */
+        border-radius: 12px; 
+        padding: 20px; 
+        text-align: center; 
+        margin-bottom: 20px; 
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
     }
-    .rec-card h4 {color: #94a3b8 !important; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;}
-    
-    [data-testid="stMetricValue"] {font-size: 1.5rem !important; font-weight: 800 !important; color: #38bdf8 !important;}
-    [data-testid="stMetricLabel"] {color: #cbd5e1 !important;}
+    .rec-card h4 {color: #94a3b8 !important; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700;}
+    /* Hành động (Mua/Bán) đậm nhất có thể */
+    .rec-card h2 {font-weight: 900 !important; font-size: 2rem !important;}
+
+    /* Số liệu (Giá, Mục tiêu) đậm hơn */
+    [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #38bdf8 !important;}
+    [data-testid="stMetricLabel"] {color: #cbd5e1 !important; font-weight: 600;}
     
     .score-circle {
         display: inline-block; width: 70px; height: 70px; line-height: 70px; 
-        border-radius: 50%; font-size: 28px; font-weight: 800; color: white; 
+        border-radius: 50%; font-size: 28px; font-weight: 900; color: white; 
         margin-bottom: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.3);
     }
     .green-zone {background: linear-gradient(135deg, #10b981, #059669);}
@@ -98,7 +109,8 @@ STOCK_GROUPS = {
 
 TRANS_MAP = {'Total Revenue': '1. Tổng Doanh Thu', 'Net Income': '2. Lợi Nhuận Sau Thuế', 'Total Assets': '3. Tổng Tài Sản', 'Stockholders Equity': '4. Vốn Chủ Sở Hữu', 'Operating Cash Flow': '5. Dòng Tiền KD'}
 
-mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
+# --- THÊM MỤC HƯỚNG DẪN VÀO MENU ---
+mode = st.sidebar.radio("Chế độ:", ["📘 Hướng Dẫn & Quy Tắc", "🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
@@ -348,9 +360,55 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🖥️ MAIN UI (ĐÃ FIX CRASH)
+# 🖥️ MAIN UI (ĐÃ THÊM MỤC HƯỚNG DẪN)
 # ==========================================
-if mode == "🔮 Phân Tích Chuyên Sâu":
+if mode == "📘 Hướng Dẫn & Quy Tắc":
+    st.header("📘 HƯỚNG DẪN SỬ DỤNG & BỘ QUY TẮC GIAO DỊCH")
+    st.markdown("""
+    ---
+    ### 🎯 TRIẾT LÝ CỐT LÕI: "DÒNG TIỀN THÔNG MINH + TĂNG TRƯỞNG"
+    Hệ thống này không phải là chén thánh, mà là bộ lọc kỷ luật để tìm kiếm các cổ phiếu có:
+    1.  **Nội tại tốt (Fundamental):** Doanh nghiệp làm ăn có lãi, tăng trưởng, nợ ít.
+    2.  **Dòng tiền vào (Technical):** "Cá mập" (Smart Money) đang gom hàng đẩy giá.
+
+    ---
+
+    ### 🛠️ CÁCH SỬ DỤNG APP
+    Có 3 chế độ chính ở menu bên trái:
+    1.  **📘 Hướng Dẫn & Quy Tắc:** Là trang Ngài đang xem.
+    2.  **🔮 Phân Tích Chuyên Sâu:** Dùng để soi kỹ MỘT mã cổ phiếu (Biểu đồ, Tin tức, Báo cáo tài chính, AI Dự báo).
+    3.  **📊 Bảng Giá & Máy Quét:** Dùng để lọc NHANH cả một ngành hoặc danh sách theo dõi để tìm cơ hội.
+
+    ---
+
+    ### 📜 BỘ QUY TẮC GIAO DỊCH (KỶ LUẬT LÀ SỨC MẠNH)
+
+    #### ✅ QUY TẮC 1: CHỌN LỌC ĐẦU VÀO (Nhìn Cột Phải - Cơ Bản)
+    * **TUYỆT ĐỐI TRÁNH:** Mã có mác **"YẾU KÉM ⚠️"** (Màu đỏ). Đây là các công ty nợ nhiều, thua lỗ hoặc không có số liệu. Dù kỹ thuật đẹp mấy cũng bỏ qua.
+    * **ƯU TIÊN:** Chỉ chơi các mã **"KIM CƯƠNG 💎"** hoặc **"VỮNG MẠNH 💪"**.
+
+    #### ✅ QUY TẮC 2: ĐIỂM MUA (Nhìn Cột Trái - Kỹ Thuật)
+    * **Điểm 8-10 (MUA MẠNH):** Giải ngân tự tin khi có các tín hiệu vàng:
+        * 🔥 **VSA: Tiền vào ồ ạt** (Vol nổ kèm giá tăng).
+        * 📈 **SuperTrend: BÁO TĂNG**.
+        * ⚡ Giá phá vỡ (Breakout) khỏi dải Bollinger Band trên.
+    * **Điểm 6-7 (MUA THĂM DÒ):** Giải ngân 30% vốn khi:
+        * Giá đang tích lũy trong vùng nút thắt cổ chai (Bollinger Squeeze).
+        * RSI hoặc MFI ở vùng quá bán ( < 30) và bắt đầu ngóc lên.
+
+    #### 🛑 QUY TẮC 3: CẮT LỖ (BẤT DI BẤT DỊCH)
+    * Nếu giá đóng cửa **THẤP HƠN** mức giá **"🛑 Cắt Lỗ"** hiển thị trên màn hình -> **BÁN NGAY LẬP TỨC**. Không được do dự.
+    * Nếu chỉ báo **SuperTrend** chuyển sang màu Đỏ (BÁO GIẢM) -> Bán hết.
+
+    #### 💰 QUY TẮC 4: CHỐT LỜI
+    * Chạm mức **"🎯 Mục Tiêu"** -> Chốt 50%.
+    * Phần còn lại gồng lãi (trailing stop) cho đến khi SuperTrend báo bán hoặc gãy đường MA20.
+
+    ---
+    > *Lời khuyên: Hãy dùng App như một người trợ lý TỈNH TÁO. Con số không biết nói dối, chỉ có cảm xúc của chúng ta đánh lừa chính mình. Chúc My Lord giao dịch thành công! 🛡️💰*
+    """)
+
+elif mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
     c1, c2 = st.columns([3, 1])
     with c1: symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
@@ -438,7 +496,7 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V22")
+    st.title("📊 Máy Quét Siêu Hạng V23")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -481,4 +539,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V22 Ultimate - Stable Release</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V23 Ultimate - Instruction & Bold UI</div>', unsafe_allow_html=True)
