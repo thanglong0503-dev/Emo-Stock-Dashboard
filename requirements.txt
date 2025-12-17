@@ -5,4 +5,5 @@ plotly
 openpyxl
 pandas_ta
 feedparser
+prophet
 
