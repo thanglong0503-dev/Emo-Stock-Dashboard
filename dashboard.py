@@ -137,15 +137,18 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
     except: df_chart = pd.DataFrame()
 
-    # --- 3. DỮ LIỆU TÀI CHÍNH ---
+    # --- 3. DỮ LIỆU TÀI CHÍNH (ĐÃ SỬA SANG QUARTERLY) ---
     try: info = stock.info
     except: info = {}
-    try: fin = stock.financials
+    
+    # SỬA LỖI Ở ĐÂY: Dùng quarterly_... để lấy Quý gần nhất (2025)
+    try: fin = stock.quarterly_financials 
     except: fin = pd.DataFrame()
-    try: bal = stock.balance_sheet
+    try: bal = stock.quarterly_balance_sheet 
     except: bal = pd.DataFrame()
-    try: cash = stock.cashflow
+    try: cash = stock.quarterly_cashflow 
     except: cash = pd.DataFrame()
+    
     try: holders = stock.major_holders
     except: holders = pd.DataFrame()
     
@@ -154,6 +157,8 @@ def load_data_final(ticker, time):
 
     news = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news
+
+
 
 # ==========================================
 # 🧠 HÀM PHÂN TÍCH KỸ THUẬT (V18 - SMART MONEY)
@@ -466,3 +471,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V19 Ultimate - Fundamental Master</div>', unsafe_allow_html=True)
+
