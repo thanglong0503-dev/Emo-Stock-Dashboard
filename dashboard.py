@@ -347,67 +347,75 @@ if mode == "🔮 Phân Tích Chuyên Sâu":
     
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_final(symbol, period)
-        if not df_chart.empty:
-            price_now = df_calc.iloc[-1]['Close']
-            long_name = info.get('longName', symbol)
-            st.title(f"💎 {long_name}")
+        
+        # --- SỬA LỖI TẠI ĐÂY: Thêm kiểm tra df_calc không được rỗng ---
+        if not df_chart.empty and not df_calc.empty:
+            try:
+                price_now = df_calc.iloc[-1]['Close']
+                long_name = info.get('longName', symbol)
+                st.title(f"💎 {long_name}")
+                
+                strat = analyze_smart(df_calc)   
+                fund = analyze_fundamental(info, fin, bal, price_now) 
+
+                if strat:
+                    col_tech, col_fund = st.columns(2)
+                    with col_tech:
+                        st.markdown(f"""
+                        <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
+                            <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
+                            <div class="score-circle {strat['zone']}">{strat['score']}</div>
+                            <h2 style="margin:0">{strat['action']}</h2>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        k1, k2, k3 = st.columns(3)
+                        k1.metric("💰 Giá", f"{strat['entry']:,.0f}")
+                        k2.metric("🛑 Cắt Lỗ", f"{strat['stop']:,.0f}", delta=f"-{(strat['entry']-strat['stop']):,.0f}", delta_color="normal") 
+                        k3.metric("🎯 Mục Tiêu", f"{strat['target']:,.0f}", delta=f"+{(strat['target']-strat['entry']):,.0f}", delta_color="normal")
+                        with st.expander("🔍 Chi tiết Kỹ Thuật"):
+                            for p in strat['pros']: st.success(f"+ {p}")
+                            for c in strat['cons']: st.error(f"- {c}")
+
+                    with col_fund:
+                        st.markdown(f"""
+                        <div class="rec-card" style="border-left: 5px solid {fund['color']};">
+                            <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
+                            <div style="font-size: 36px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        with st.expander("🔍 Chi tiết Cơ Bản (Tự tính từ BCTC Quý)", expanded=True):
+                            for d in fund['details']: 
+                                if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
+                                else: st.write(f"✅ {d}")
+
+                # CÁC TAB DỮ LIỆU
+                t1, t2, t3, t4, t5 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
+                with t1: render_pro_chart(df_chart, symbol)
+                with t2:
+                    if PROPHET_AVAILABLE:
+                        fig_ai, msg_ai = run_prophet_forecast(df_calc)
+                        if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
+                        else: st.error(msg_ai)
+                    else: st.warning("⚠️ Chưa cài thư viện Prophet")
+                with t3:
+                    for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
+                with t4:
+                    c_left, c_right = st.columns(2)
+                    with c_left: st.subheader("Kinh Doanh (Quý)"); st.dataframe(clean_table(fin), use_container_width=True)
+                    with c_right: st.subheader("Cân Đối Kế Toán (Quý)"); st.dataframe(clean_table(bal), use_container_width=True)
+                    st.subheader("Lưu Chuyển Tiền Tệ")
+                    st.dataframe(clean_table(cash), use_container_width=True)
+                with t5:
+                    c1, c2 = st.columns([2, 1])
+                    with c1: st.write(info.get('longBusinessSummary', 'Hiện chưa có mô tả.'))
+                    with c2:
+                        st.info(f"Ngành: {info.get('industry', 'N/A')}")
+                        st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
             
-            strat = analyze_smart(df_calc)   
-            fund = analyze_fundamental(info, fin, bal, price_now) 
-
-            if strat:
-                col_tech, col_fund = st.columns(2)
-                with col_tech:
-                    st.markdown(f"""
-                    <div class="rec-card" style="border-left: 5px solid {strat['zone'].split('-')[0]};">
-                        <h4>🔭 GÓC NHÌN KỸ THUẬT</h4>
-                        <div class="score-circle {strat['zone']}">{strat['score']}</div>
-                        <h2 style="margin:0">{strat['action']}</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    k1, k2, k3 = st.columns(3)
-                    k1.metric("💰 Giá", f"{strat['entry']:,.0f}")
-                    k2.metric("🛑 Cắt Lỗ", f"{strat['stop']:,.0f}", delta=f"-{(strat['entry']-strat['stop']):,.0f}", delta_color="normal") 
-                    k3.metric("🎯 Mục Tiêu", f"{strat['target']:,.0f}", delta=f"+{(strat['target']-strat['entry']):,.0f}", delta_color="normal")
-                    with st.expander("🔍 Chi tiết Kỹ Thuật"):
-                        for p in strat['pros']: st.success(f"+ {p}")
-                        for c in strat['cons']: st.error(f"- {c}")
-
-                with col_fund:
-                    st.markdown(f"""
-                    <div class="rec-card" style="border-left: 5px solid {fund['color']};">
-                        <h4>🏢 SỨC KHỎE DOANH NGHIỆP</h4>
-                        <div style="font-size: 36px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    with st.expander("🔍 Chi tiết Cơ Bản (Tự tính từ BCTC Quý)", expanded=True):
-                        for d in fund['details']: 
-                            if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
-                            else: st.write(f"✅ {d}")
-
-            # THÊM TAB DỰ BÁO AI
-            t1, t2, t3, t4, t5 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
-            with t1: render_pro_chart(df_chart, symbol)
-            with t2:
-                if PROPHET_AVAILABLE:
-                    fig_ai, msg_ai = run_prophet_forecast(df_calc)
-                    if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
-                    else: st.error(msg_ai)
-                else: st.warning("⚠️ Vui lòng cài đặt thư viện Prophet: pip install prophet")
-            with t3:
-                for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
-            with t4:
-                c_left, c_right = st.columns(2)
-                with c_left: st.subheader("Kinh Doanh (Quý)"); st.dataframe(clean_table(fin), use_container_width=True)
-                with c_right: st.subheader("Cân Đối Kế Toán (Quý)"); st.dataframe(clean_table(bal), use_container_width=True)
-                st.subheader("Lưu Chuyển Tiền Tệ")
-                st.dataframe(clean_table(cash), use_container_width=True)
-            with t5:
-                c1, c2 = st.columns([2, 1])
-                with c1: st.write(info.get('longBusinessSummary', 'Hiện chưa có mô tả.'))
-                with c2:
-                    st.info(f"Ngành: {info.get('industry', 'N/A')}")
-                    st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
+            except Exception as e:
+                st.error(f"⚠️ Có lỗi khi xử lý dữ liệu mã {symbol}. Chi tiết: {e}")
+        else:
+            st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
     st.title("📊 Máy Quét Siêu Hạng V20")
@@ -454,3 +462,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V20 Ultimate - AI Prophet Edition</div>', unsafe_allow_html=True)
+
