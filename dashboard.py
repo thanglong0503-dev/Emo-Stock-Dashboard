@@ -199,7 +199,7 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='Blue')),
             yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
             hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
@@ -535,3 +535,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V27 Ultimate - Unified UI</div>', unsafe_allow_html=True)
+
