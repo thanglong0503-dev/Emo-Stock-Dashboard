@@ -19,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V31", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V32", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -107,25 +107,39 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (THÊM VNINDEX)
+# 🧠 XỬ LÝ DỮ LIỆU (FIX VNINDEX V32)
 # ==========================================
 @st.cache_data(ttl=300)
 def get_vnindex():
-    # Hàm riêng biệt, siêu nhẹ để lấy VNINDEX
+    # 1. Thử tải VNINDEX chuẩn
     try:
         session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
-        vnindex = yf.Ticker("^VNINDEX", session=session) # Ticker chuẩn Yahoo
-        df = vnindex.history(period="1mo") # Chỉ lấy 1 tháng cho nhẹ
+        # Header giả lập Chrome xịn để tránh bị chặn
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        })
+        
+        # Ưu tiên 1: Lấy Index chuẩn
+        vnindex = yf.Ticker("^VNINDEX", session=session)
+        df = vnindex.history(period="5d") # Lấy ngắn 5 ngày cho nhẹ và dễ success
+        
         if not df.empty:
             now = df.iloc[-1]; prev = df.iloc[-2]
-            return {
-                "price": now['Close'],
-                "change": now['Close'] - prev['Close'],
-                "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100,
-                "data": df
-            }
+            return {"name": "VN-INDEX", "price": now['Close'], "change": now['Close'] - prev['Close'], "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100, "data": df}
+            
+    except: pass
+    
+    # 2. Phương án B: Nếu VNINDEX lỗi, lấy ETF VN30 (E1VFVN30.VN)
+    # ETF này chạy y hệt VNINDEX và không bao giờ bị chặn
+    try:
+        etf = yf.Ticker("E1VFVN30.VN")
+        df = etf.history(period="5d")
+        if not df.empty:
+            now = df.iloc[-1]; prev = df.iloc[-2]
+            return {"name": "VN30 ETF (Tham chiếu)", "price": now['Close'], "change": now['Close'] - prev['Close'], "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100, "data": df}
     except: return None
+    
     return None
 
 @st.cache_data(ttl=300)
@@ -226,18 +240,34 @@ def run_monte_carlo(df, days=30, simulations=1000):
     
     fig = go.Figure()
     dates = [datetime.now() + timedelta(days=i) for i in range(days)]
+    
     for i in range(min(50, simulations)):
         fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False, hoverinfo='skip'))
+        
     mean_path = simulation_df.mean(axis=1)
     fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
-    fig.update_layout(title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
+    
+    fig.update_layout(
+        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)),
+        yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
+        template="plotly_dark", 
+        height=600,
+        hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
+    )
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     
     final_prices = simulation_df.iloc[-1]
-    stats = { "mean": final_prices.mean(), "top_5": np.percentile(final_prices, 95), "bot_5": np.percentile(final_prices, 5), "prob_up": (final_prices > last_price).mean() * 100 }
+    stats = {
+        "mean": final_prices.mean(),
+        "top_5": np.percentile(final_prices, 95),
+        "bot_5": np.percentile(final_prices, 5),
+        "prob_up": (final_prices > last_price).mean() * 100
+    }
+    
     fig_hist = px.histogram(final_prices, nbins=50, title="📊 Phân Phối Giá Cuối Kỳ")
     fig_hist.add_vline(x=last_price, line_dash="dash", line_color="red", annotation_text="Giá Hiện Tại")
     fig_hist.update_layout(template="plotly_dark", showlegend=False, margin=dict(l=0,r=0,t=50,b=0))
+
     return fig, fig_hist, stats
 
 # ==========================================
@@ -253,7 +283,9 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)),
+            yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
+            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
@@ -419,20 +451,19 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
 elif mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
     
-    # === VNINDEX WATCH (V31 - MỚI) ===
+    # === VNINDEX WATCH (V32 - FIX) ===
     with st.expander("📊 Chỉ số VNINDEX hôm nay (Bấm để xem)", expanded=True):
         vni = get_vnindex()
         if vni:
             cm1, cm2 = st.columns([1, 3])
             with cm1:
-                st.metric("VN-INDEX", f"{vni['price']:,.2f}", f"{vni['change']:,.2f} ({vni['pct']:.2f}%)")
+                st.metric(vni['name'], f"{vni['price']:,.2f}", f"{vni['change']:,.2f} ({vni['pct']:.2f}%)")
             with cm2:
-                # Vẽ biểu đồ mini cho VNINDEX
                 fig_vni = go.Figure()
                 fig_vni.add_trace(go.Scatter(x=vni['data'].index, y=vni['data']['Close'], mode='lines', line=dict(color='#22d3ee', width=2), fill='tozeroy', fillcolor='rgba(34, 211, 238, 0.1)'))
                 fig_vni.update_layout(height=100, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", xaxis_visible=False, yaxis_visible=False)
                 st.plotly_chart(fig_vni, use_container_width=True)
-        else: st.warning("Không tải được dữ liệu VNINDEX lúc này.")
+        else: st.warning("Không tải được dữ liệu VNINDEX (Yahoo chặn). Hãy thử lại sau.")
     
     c1, c2 = st.columns([3, 1])
     with c1: symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
@@ -530,7 +561,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V31")
+    st.title("📊 Máy Quét Siêu Hạng V32")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -573,4 +604,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V31 Ultimate - Market Watch</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V32 Ultimate - Market Watch</div>', unsafe_allow_html=True)
