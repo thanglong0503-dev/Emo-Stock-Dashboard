@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import numpy as np  # Thêm thư viện Toán học
+import numpy as np  # Thư viện Toán học
 import yfinance as yf
 import plotly.graph_objects as go
 import plotly.express as px
@@ -19,10 +19,10 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V28", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V29", page_icon="🐲")
 
 # ==========================================
-# 🔐 HỆ THỐNG ĐĂNG NHẬP (FULL DANH SÁCH)
+# 🔐 HỆ THỐNG ĐĂNG NHẬP (FULL LIST)
 # ==========================================
 USERS_DB = {
     "admin": "admin123", 
@@ -58,7 +58,7 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO (V23 STYLE)
+# 🎨 GIAO DIỆN DARK MODE PRO
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
@@ -197,64 +197,58 @@ def load_data_final(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
 
 # ==========================================
-# 🧠 MONTE CARLO SIMULATION (NEW V28)
+# 🧠 MONTE CARLO SIMULATION (V29 - PRO UI)
 # ==========================================
 def run_monte_carlo(df, days=30, simulations=1000):
     if df.empty: return None, "Không đủ dữ liệu"
     
-    # 1. Tính toán biến động
     data = df['Close']
     returns = data.pct_change().dropna()
-    mu = returns.mean()
-    sigma = returns.std()
-    last_price = data.iloc[-1]
+    mu = returns.mean(); sigma = returns.std(); last_price = data.iloc[-1]
     
-    # 2. Chạy mô phỏng (Random Walk)
-    simulation_df = pd.DataFrame()
-    
-    # Tạo ma trận ngẫu nhiên nhanh hơn vòng lặp
-    # shape: (days, simulations)
-    # Công thức: Price_t = Price_{t-1} * exp((mu - 0.5 * sigma^2) + sigma * Z)
     drift = mu - 0.5 * sigma**2
     Z = np.random.normal(0, 1, (days, simulations))
     daily_returns = np.exp(drift + sigma * Z)
     
     price_paths = np.zeros_like(daily_returns)
     price_paths[0] = last_price
-    
-    for t in range(1, days):
-        price_paths[t] = price_paths[t-1] * daily_returns[t]
+    for t in range(1, days): price_paths[t] = price_paths[t-1] * daily_returns[t]
         
     simulation_df = pd.DataFrame(price_paths)
     
-    # 3. Vẽ biểu đồ "Mì Spaghetti" (Chỉ vẽ 50 đường cho nhẹ)
+    # --- VẼ BIỂU ĐỒ TƯƠNG TÁC ---
     fig = go.Figure()
     dates = [datetime.now() + timedelta(days=i) for i in range(days)]
     
+    # Vẽ 50 đường mờ
     for i in range(min(50, simulations)):
-        fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+        fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False, hoverinfo='skip'))
         
-    # Đường trung bình
+    # Đường trung bình (Nổi bật)
     mean_path = simulation_df.mean(axis=1)
-    fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
+    fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình (Kỳ Vọng)'))
     
-    fig.update_layout(title=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", template="plotly_dark", height=500, hovermode="x unified")
+    # Cấu hình giao diện (Range Slider + Pan + Zoom)
+    fig.update_layout(
+        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20, color='white')),
+        yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
+        template="plotly_dark", height=600,
+        hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
+    )
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05)) # <--- ĐÃ THÊM THANH TRƯỢT
     
-    # 4. Thống kê kết quả cuối cùng
+    # Thống kê
     final_prices = simulation_df.iloc[-1]
     stats = {
         "mean": final_prices.mean(),
-        "max": final_prices.max(),
-        "min": final_prices.min(),
         "top_5": np.percentile(final_prices, 95),
         "bot_5": np.percentile(final_prices, 5),
         "prob_up": (final_prices > last_price).mean() * 100
     }
     
-    # Biểu đồ phân phối
     fig_hist = px.histogram(final_prices, nbins=50, title="📊 Phân Phối Giá Cuối Kỳ")
     fig_hist.add_vline(x=last_price, line_dash="dash", line_color="red", annotation_text="Giá Hiện Tại")
-    fig_hist.update_layout(template="plotly_dark", showlegend=False)
+    fig_hist.update_layout(template="plotly_dark", showlegend=False, margin=dict(l=0,r=0,t=50,b=0))
 
     return fig, fig_hist, stats
 
@@ -532,17 +526,17 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
                         else: st.error(msg_ai)
                     else: st.warning("⚠️ Chưa cài thư viện Prophet")
-                with t3: # TAB MONTE CARLO MỚI
-                    with st.spinner("🌌 Đang mở cổng đa vũ trụ (Simulating 1000 futures)..."):
+                with t3: # TAB MONTE CARLO (NÂNG CẤP V29)
+                    with st.spinner("🌌 Đang mở cổng đa vũ trụ..."):
                         fig_mc, fig_hist, stats = run_monte_carlo(df_calc)
                     
                     if fig_mc:
                         st.plotly_chart(fig_mc, use_container_width=True)
                         m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("Trung Bình (Exp)", f"{stats['mean']:,.0f}")
+                        m1.metric("Trung Bình", f"{stats['mean']:,.0f}")
                         m2.metric("Lạc Quan (Top 5%)", f"{stats['top_5']:,.0f}", delta="Best Case", delta_color="normal")
                         m3.metric("Bi Quan (Bot 5%)", f"{stats['bot_5']:,.0f}", delta="Worst Case", delta_color="inverse")
-                        m4.metric("Tỷ Lệ Tăng Giá", f"{stats['prob_up']:.1f}%")
+                        m4.metric("Xác Suất Tăng", f"{stats['prob_up']:.1f}%")
                         st.plotly_chart(fig_hist, use_container_width=True)
                     else: st.error("Không đủ dữ liệu mô phỏng.")
                 with t4:
@@ -571,7 +565,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V28")
+    st.title("📊 Máy Quét Siêu Hạng V29")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -614,4 +608,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V28 Ultimate - Multiverse Edition</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V29 Ultimate - Multiverse PRO UI</div>', unsafe_allow_html=True)
