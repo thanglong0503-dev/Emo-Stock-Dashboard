@@ -27,7 +27,7 @@ st.set_page_config(layout="wide", page_title="ThangLong Ultimate V30", page_icon
 USERS_DB = {
     "admin": "admin123", "stock": "stock123", "guest": "123456",
     "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456",
-    "Mrquynh": "123456", "Msnhung": "123456", "thanhduc": "123456"
+    "Mrquynh": "123456", "Msnhung": "123456", "thanhduc": "123456","quyen": "123456"
 }
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
@@ -542,3 +542,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V30 Ultimate - Adaptive Stable</div>', unsafe_allow_html=True)
+
