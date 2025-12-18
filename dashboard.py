@@ -19,10 +19,10 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V32", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V30", page_icon="🐲")
 
 # ==========================================
-# 🔐 HỆ THỐNG ĐĂNG NHẬP
+# 🔐 HỆ THỐNG ĐĂNG NHẬP (FULL LIST)
 # ==========================================
 USERS_DB = {
     "admin": "admin123", "stock": "stock123", "guest": "123456",
@@ -51,7 +51,7 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN ADAPTIVE UI (V30)
+# 🎨 GIAO DIỆN ADAPTIVE (THÔNG MINH SÁNG/TỐI)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
@@ -64,6 +64,7 @@ st.markdown("""
     html, body, [class*="css"] {font-family: 'Inter', sans-serif !important;}
     h1, h2, h3 {font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(128,128,128,0.2);}
     
+    /* Card tự đổi màu theo theme */
     .rec-card {
         background-color: var(--secondary-background-color); 
         border: 2px solid var(--text-color); 
@@ -72,7 +73,9 @@ st.markdown("""
     }
     .rec-card h4 {color: var(--text-color) !important; opacity: 0.8; text-transform: uppercase; font-size: 0.85rem; font-weight: 700;}
     .rec-card h2 {color: var(--primary-color) !important; font-weight: 900 !important; font-size: 2rem !important;}
+    
     [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #0ea5e9 !important;}
+    
     .score-circle {
         display: inline-block; width: 70px; height: 70px; line-height: 70px; 
         border-radius: 50%; font-size: 28px; font-weight: 900; color: white; 
@@ -81,6 +84,7 @@ st.markdown("""
     .green-zone {background: linear-gradient(135deg, #10b981, #059669);}
     .red-zone {background: linear-gradient(135deg, #ef4444, #b91c1c);}
     .yellow-zone {background: linear-gradient(135deg, #f59e0b, #d97706);}
+    
     .footer {
         position: fixed; left: 0; bottom: 0; width: 100%; background: var(--secondary-background-color); 
         color: var(--text-color); text-align: center; font-size: 12px; padding: 10px; 
@@ -107,41 +111,8 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (FIX VNINDEX V32)
+# 🧠 XỬ LÝ DỮ LIỆU
 # ==========================================
-@st.cache_data(ttl=300)
-def get_vnindex():
-    # 1. Thử tải VNINDEX chuẩn
-    try:
-        session = requests.Session()
-        # Header giả lập Chrome xịn để tránh bị chặn
-        session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-        })
-        
-        # Ưu tiên 1: Lấy Index chuẩn
-        vnindex = yf.Ticker("^VNINDEX", session=session)
-        df = vnindex.history(period="5d") # Lấy ngắn 5 ngày cho nhẹ và dễ success
-        
-        if not df.empty:
-            now = df.iloc[-1]; prev = df.iloc[-2]
-            return {"name": "VN-INDEX", "price": now['Close'], "change": now['Close'] - prev['Close'], "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100, "data": df}
-            
-    except: pass
-    
-    # 2. Phương án B: Nếu VNINDEX lỗi, lấy ETF VN30 (E1VFVN30.VN)
-    # ETF này chạy y hệt VNINDEX và không bao giờ bị chặn
-    try:
-        etf = yf.Ticker("E1VFVN30.VN")
-        df = etf.history(period="5d")
-        if not df.empty:
-            now = df.iloc[-1]; prev = df.iloc[-2]
-            return {"name": "VN30 ETF (Tham chiếu)", "price": now['Close'], "change": now['Close'] - prev['Close'], "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100, "data": df}
-    except: return None
-    
-    return None
-
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
     try:
@@ -222,12 +193,11 @@ def load_data_final(ticker, time):
 # 🧠 MONTE CARLO SIMULATION
 # ==========================================
 def run_monte_carlo(df, days=30, simulations=1000):
-    if df.empty: return None, "Không đủ dữ liệu"
+    if df.empty: return None, None, None
     
     data = df['Close']
     returns = data.pct_change().dropna()
     mu = returns.mean(); sigma = returns.std(); last_price = data.iloc[-1]
-    
     drift = mu - 0.5 * sigma**2
     Z = np.random.normal(0, 1, (days, simulations))
     daily_returns = np.exp(drift + sigma * Z)
@@ -235,39 +205,22 @@ def run_monte_carlo(df, days=30, simulations=1000):
     price_paths = np.zeros_like(daily_returns)
     price_paths[0] = last_price
     for t in range(1, days): price_paths[t] = price_paths[t-1] * daily_returns[t]
-        
     simulation_df = pd.DataFrame(price_paths)
     
     fig = go.Figure()
     dates = [datetime.now() + timedelta(days=i) for i in range(days)]
-    
     for i in range(min(50, simulations)):
         fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False, hoverinfo='skip'))
-        
     mean_path = simulation_df.mean(axis=1)
     fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
-    
-    fig.update_layout(
-        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)),
-        yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
-        template="plotly_dark", 
-        height=600,
-        hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
-    )
+    fig.update_layout(title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     
     final_prices = simulation_df.iloc[-1]
-    stats = {
-        "mean": final_prices.mean(),
-        "top_5": np.percentile(final_prices, 95),
-        "bot_5": np.percentile(final_prices, 5),
-        "prob_up": (final_prices > last_price).mean() * 100
-    }
-    
+    stats = { "mean": final_prices.mean(), "top_5": np.percentile(final_prices, 95), "bot_5": np.percentile(final_prices, 5), "prob_up": (final_prices > last_price).mean() * 100 }
     fig_hist = px.histogram(final_prices, nbins=50, title="📊 Phân Phối Giá Cuối Kỳ")
     fig_hist.add_vline(x=last_price, line_dash="dash", line_color="red", annotation_text="Giá Hiện Tại")
     fig_hist.update_layout(template="plotly_dark", showlegend=False, margin=dict(l=0,r=0,t=50,b=0))
-
     return fig, fig_hist, stats
 
 # ==========================================
@@ -283,9 +236,7 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)),
-            yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
-            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
@@ -450,21 +401,6 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
 
 elif mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
-    
-    # === VNINDEX WATCH (V32 - FIX) ===
-    with st.expander("📊 Chỉ số VNINDEX hôm nay (Bấm để xem)", expanded=True):
-        vni = get_vnindex()
-        if vni:
-            cm1, cm2 = st.columns([1, 3])
-            with cm1:
-                st.metric(vni['name'], f"{vni['price']:,.2f}", f"{vni['change']:,.2f} ({vni['pct']:.2f}%)")
-            with cm2:
-                fig_vni = go.Figure()
-                fig_vni.add_trace(go.Scatter(x=vni['data'].index, y=vni['data']['Close'], mode='lines', line=dict(color='#22d3ee', width=2), fill='tozeroy', fillcolor='rgba(34, 211, 238, 0.1)'))
-                fig_vni.update_layout(height=100, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", xaxis_visible=False, yaxis_visible=False)
-                st.plotly_chart(fig_vni, use_container_width=True)
-        else: st.warning("Không tải được dữ liệu VNINDEX (Yahoo chặn). Hãy thử lại sau.")
-    
     c1, c2 = st.columns([3, 1])
     with c1: symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
     with c2: 
@@ -526,6 +462,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 with t3: # TAB MONTE CARLO
                     with st.spinner("🌌 Đang mở cổng đa vũ trụ..."):
                         fig_mc, fig_hist, stats = run_monte_carlo(df_calc)
+                    
                     if fig_mc:
                         st.plotly_chart(fig_mc, use_container_width=True)
                         m1, m2, m3, m4 = st.columns(4)
@@ -561,7 +498,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V32")
+    st.title("📊 Máy Quét Siêu Hạng V30")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -604,4 +541,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V32 Ultimate - Market Watch</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V30 Ultimate - Adaptive Stable</div>', unsafe_allow_html=True)
