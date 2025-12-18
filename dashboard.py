@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
 from datetime import datetime
-import requests # Thư viện để ngụy trang
+import requests 
 
 # --- THƯ VIỆN AI (PROPHET) ---
 try:
@@ -17,14 +17,14 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V23", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V26", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
 # ==========================================
 USERS_DB = {
     "admin": "admin123", "stock": "stock123", "guest": "123456",
-    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456","thanhduc": "123456"
+    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456"
 }
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
@@ -48,26 +48,23 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO (V23 - ĐẬM ĐÀ HƠN)
+# 🎨 GIAO DIỆN DARK MODE PRO (V23 - BOLD STYLE)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"): st.session_state['logged_in'] = False; st.rerun()
 st.sidebar.divider()
 
-# --- CẬP NHẬT CSS CHO VIỀN VÀ CHỮ ĐẬM HƠN ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
     html, body, [class*="css"] {font-family: 'Inter', sans-serif !important; color: #e2e8f0;}
     
-    /* Tiêu đề đậm hơn */
     h1, h2, h3 {color: #ffffff !important; font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(0,0,0,0.5);}
     
-    /* Khung viền đậm hơn (2px và màu tối hơn) */
     .rec-card {
         background-color: #1e293b; 
-        border: 2px solid #0f172a; /* Viền dày 2px màu tối */
+        border: 2px solid #0f172a; 
         border-radius: 12px; 
         padding: 20px; 
         text-align: center; 
@@ -75,10 +72,8 @@ st.markdown("""
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
     }
     .rec-card h4 {color: #94a3b8 !important; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700;}
-    /* Hành động (Mua/Bán) đậm nhất có thể */
     .rec-card h2 {font-weight: 900 !important; font-size: 2rem !important;}
 
-    /* Số liệu (Giá, Mục tiêu) đậm hơn */
     [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #38bdf8 !important;}
     [data-testid="stMetricLabel"] {color: #cbd5e1 !important; font-weight: 600;}
     
@@ -109,12 +104,11 @@ STOCK_GROUPS = {
 
 TRANS_MAP = {'Total Revenue': '1. Tổng Doanh Thu', 'Net Income': '2. Lợi Nhuận Sau Thuế', 'Total Assets': '3. Tổng Tài Sản', 'Stockholders Equity': '4. Vốn Chủ Sở Hữu', 'Operating Cash Flow': '5. Dòng Tiền KD'}
 
-# --- THÊM MỤC HƯỚNG DẪN VÀO MENU ---
-mode = st.sidebar.radio("Chế độ:", ["📘 Hướng Dẫn & Quy Tắc", "🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét"])
+mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét", "📘 Hướng Dẫn & Quy Tắc"])
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU
+# 🧠 XỬ LÝ DỮ LIỆU (FULL OPTION V25 + V26)
 # ==========================================
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
@@ -128,7 +122,7 @@ def load_news_google(symbol):
 def load_data_final(ticker, time):
     t = f"{ticker}.VN"
     
-    # Kỹ thuật ngụy trang
+    # Kỹ thuật ngụy trang Session (V24)
     try:
         session = requests.Session()
         session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
@@ -159,22 +153,22 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
     except: df_chart = pd.DataFrame()
 
-    # 3. DỮ LIỆU TÀI CHÍNH & HỒ SƠ (CẢI TIẾN)
+    # 3. DỮ LIỆU TÀI CHÍNH & HỒ SƠ (Clean + Fix Lỗi 404 V25)
     try: info = stock.info
     except: info = {}
     
-    # --- CỬA HẬU: LẤY FAST_INFO TRÁM VÀO NẾU INFO BỊ CHẶN ---
     try:
         fast = stock.fast_info
         if info is None or info.get('marketCap') is None:
             if info is None: info = {}
             info['marketCap'] = fast.get('market_cap', 0)
             info['currentPrice'] = fast.get('last_price', 0)
-            # Tự chế các trường bị thiếu để không lỗi hiển thị
-            info['longName'] = f"{ticker} (Data)"
+            
+            # Tên hiển thị Sạch
+            info['longName'] = f"Cổ Phiếu {ticker}" 
             info['industry'] = "Đang cập nhật..."
-            # Link dự phòng CafeF
-            info['longBusinessSummary'] = f"Yahoo đang chặn mô tả. 👉 [Bấm để xem Hồ Sơ trên CafeF](https://s.cafef.vn/hose/{ticker}.chn)"
+            # Link tra cứu tinh tế (V24)
+            info['longBusinessSummary'] = f"Chi tiết hồ sơ doanh nghiệp & Ban lãnh đạo:\n\n👉 **[Tra cứu tại Vietstock](https://finance.vietstock.vn/{ticker})**\n👉 **[Tra cứu tại CafeF](https://s.cafef.vn/tim-kiem.chn?keywords={ticker})**"
     except: pass
 
     try: fin = stock.quarterly_financials 
@@ -186,11 +180,19 @@ def load_data_final(ticker, time):
     try: holders = stock.major_holders
     except: holders = pd.DataFrame()
 
+    # 4. DỮ LIỆU CỔ TỨC (V26)
+    try: 
+        dividends = stock.dividends
+        splits = stock.splits
+    except: 
+        dividends = pd.Series(dtype='float64')
+        splits = pd.Series(dtype='float64')
+
     news = load_news_google(ticker)
-    return df_calc, df_chart, info, fin, bal, cash, holders, news
+    return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
 
 # ==========================================
-# 🧠 AI PREDICTION (ĐÃ FIX MÀU & ZOOM)
+# 🧠 AI PREDICTION (PROPHET V2)
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
@@ -202,8 +204,8 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         
         fig = plot_plotly(m, forecast)
-        fig.data[0].marker.color = '#22d3ee' # Chấm xanh sáng
-        fig.data[1].line.color = '#f472b6' # Line hồng
+        fig.data[0].marker.color = '#22d3ee' # Cyan Dots
+        fig.data[1].line.color = '#f472b6' # Pink Line
         fig.update_layout(
             title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
             yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
@@ -215,7 +217,7 @@ def run_prophet_forecast(df, periods=90):
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT (V19)
+# 🧠 PHÂN TÍCH KỸ THUẬT (SMART VSA)
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 100: return None
@@ -237,7 +239,7 @@ def analyze_smart(df):
     if vol_now > 1.5 * vol_avg and close > prev['Close']: score += 2; pros.append(f"🔥 VSA: Tiền vào ồ ạt")
     elif vol_now > 1.2 * vol_avg and close > prev['Close']: score += 1; pros.append("VSA: Dòng tiền tốt")
     if bandwidth < 0.10: 
-        pros.append("⚡ Bollinger: Nút thắt cổ chai (Sắp nổ Vol)")
+        pros.append("⚡ Bollinger: Nút thắt cổ chai")
         if close > bb_upper: score += 2; pros.append("=> Breakout Lên!")
         elif close < bb_lower: score -= 2; cons.append("=> Breakdown Xuống!")
 
@@ -260,7 +262,7 @@ def analyze_smart(df):
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
 # ==========================================
-# 🧠 PHÂN TÍCH CƠ BẢN (CẢI TIẾN TỰ TÍNH)
+# 🧠 PHÂN TÍCH CƠ BẢN (ROBUST CALCULATION V25)
 # ==========================================
 def analyze_fundamental(info, fin, bal, price_now):
     score = 0; details = []
@@ -268,20 +270,19 @@ def analyze_fundamental(info, fin, bal, price_now):
 
     try:
         mkt_cap = info.get('marketCap', 0)
-        # Fallback nếu Market Cap = 0
         if mkt_cap == 0 and price_now > 0: mkt_cap = price_now * 1000000000 
 
-        # 1. Tự tính P/E nếu Yahoo thiếu
+        # Tự tính P/E
         net_income_ttm = 0
         if not fin.empty:
-            cols = fin.columns[:4] # 4 Quý gần nhất
+            cols = fin.columns[:4] 
             try: net_income_ttm = fin.loc['Net Income'][cols].sum()
             except: pass
         
         if net_income_ttm > 0 and mkt_cap > 0: pe = mkt_cap / net_income_ttm
         else: pe = info.get('trailingPE', 0)
 
-        # 2. Các chỉ số khác
+        # Các chỉ số khác
         equity = 0
         if not bal.empty:
             try: equity = bal.loc['Stockholders Equity'].iloc[0];
@@ -318,7 +319,7 @@ def analyze_fundamental(info, fin, bal, price_now):
     if 0 < debt_ratio < 60: score += 1; details.append(f"Nợ vay an toàn ({debt_ratio:.0f}%)")
     if current_ratio > 1.5: score += 1; details.append(f"Thanh khoản tốt ({current_ratio:.1f})")
 
-    if score == 0 and len(details) == 0: details.append("Chưa đủ dữ liệu BCTC để tính toán")
+    if score == 0 and len(details) == 0: details.append("Chưa đủ dữ liệu BCTC")
     health, color = ("TRUNG BÌNH", "#f59e0b")
     if score >= 6: health, color = ("KIM CƯƠNG 💎", "#10b981") 
     elif score >= 3: health, color = ("VỮNG MẠNH 💪", "#3b82f6")
@@ -360,52 +361,55 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🖥️ MAIN UI (ĐÃ THÊM MỤC HƯỚNG DẪN)
+# 🎁 HÀM VẼ CỔ TỨC (V26)
+# ==========================================
+def render_dividend_chart(dividends, splits):
+    if not dividends.empty:
+        div_df = dividends.reset_index()
+        div_df.columns = ['Date', 'Amount']
+        div_df['Date'] = div_df['Date'].dt.tz_localize(None)
+        
+        # Chỉ lấy 5 năm gần nhất
+        div_df = div_df[div_df['Date'] > datetime.now().replace(year=datetime.now().year - 5)]
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=div_df['Date'], y=div_df['Amount'], marker_color='#10b981', name='Cổ tức tiền mặt'))
+        fig.update_layout(title="💰 Lịch Sử Trả Cổ Tức (5 Năm)", template="plotly_dark", height=400)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        with st.expander("📋 Xem chi tiết lịch sử"):
+            st.dataframe(div_df.sort_values('Date', ascending=False).style.format({"Amount": "{:,.0f} đ"}), use_container_width=True)
+    else:
+        st.info("Không có dữ liệu trả cổ tức trong thời gian gần đây.")
+    
+    if not splits.empty:
+        st.subheader("✂️ Lịch Sử Chia Tách")
+        st.write(splits.sort_index(ascending=False).head(5))
+
+# ==========================================
+# 🖥️ MAIN UI
 # ==========================================
 if mode == "📘 Hướng Dẫn & Quy Tắc":
     st.header("📘 HƯỚNG DẪN SỬ DỤNG & BỘ QUY TẮC GIAO DỊCH")
     st.markdown("""
     ---
-    ### 🎯 TRIẾT LÝ CỐT LÕI: "DÒNG TIỀN THÔNG MINH + TĂNG TRƯỞNG"
-    Hệ thống này không phải là chén thánh, mà là bộ lọc kỷ luật để tìm kiếm các cổ phiếu có:
-    1.  **Nội tại tốt (Fundamental):** Doanh nghiệp làm ăn có lãi, tăng trưởng, nợ ít.
-    2.  **Dòng tiền vào (Technical):** "Cá mập" (Smart Money) đang gom hàng đẩy giá.
-
+    ### 🎯 TRIẾT LÝ: "DÒNG TIỀN THÔNG MINH + TĂNG TRƯỞNG"
+    1.  **Fundamental (Cơ bản):** Doanh nghiệp Tăng trưởng, Lãi thật, Nợ an toàn.
+    2.  **Technical (Kỹ thuật):** Dòng tiền "Cá mập" vào, Giá Breakout.
     ---
-
-    ### 🛠️ CÁCH SỬ DỤNG APP
-    Có 3 chế độ chính ở menu bên trái:
-    1.  **📘 Hướng Dẫn & Quy Tắc:** Là trang đang xem.
-    2.  **🔮 Phân Tích Chuyên Sâu:** Dùng để soi kỹ MỘT mã cổ phiếu (Biểu đồ, Tin tức, Báo cáo tài chính, AI Dự báo).
-    3.  **📊 Bảng Giá & Máy Quét:** Dùng để lọc NHANH cả một ngành hoặc danh sách theo dõi để tìm cơ hội.
-
+    ### 🛠️ CÁCH SỬ DỤNG
+    1.  **🔮 Phân Tích Chuyên Sâu:** Soi chi tiết từng mã (Biểu đồ, AI Prophet, BCTC, Cổ tức).
+    2.  **📊 Bảng Giá & Máy Quét:** Lọc nhanh cơ hội toàn thị trường.
+    3.  **📘 Hướng Dẫn:** Ôn lại quy tắc.
     ---
-
-    ### 📜 BỘ QUY TẮC GIAO DỊCH (KỶ LUẬT LÀ SỨC MẠNH)
-
-    #### ✅ QUY TẮC 1: CHỌN LỌC ĐẦU VÀO (Nhìn Cột Phải - Cơ Bản)
-    * **TUYỆT ĐỐI TRÁNH:** Mã có mác **"YẾU KÉM ⚠️"** (Màu đỏ). Đây là các công ty nợ nhiều, thua lỗ hoặc không có số liệu. Dù kỹ thuật đẹp mấy cũng bỏ qua.
-    * **ƯU TIÊN:** Chỉ chơi các mã **"KIM CƯƠNG 💎"** hoặc **"VỮNG MẠNH 💪"**.
-
-    #### ✅ QUY TẮC 2: ĐIỂM MUA (Nhìn Cột Trái - Kỹ Thuật)
-    * **Điểm 8-10 (MUA MẠNH):** Giải ngân tự tin khi có các tín hiệu vàng:
-        * 🔥 **VSA: Tiền vào ồ ạt** (Vol nổ kèm giá tăng).
-        * 📈 **SuperTrend: BÁO TĂNG**.
-        * ⚡ Giá phá vỡ (Breakout) khỏi dải Bollinger Band trên.
-    * **Điểm 6-7 (MUA THĂM DÒ):** Giải ngân 30% vốn khi:
-        * Giá đang tích lũy trong vùng nút thắt cổ chai (Bollinger Squeeze).
-        * RSI hoặc MFI ở vùng quá bán ( < 30) và bắt đầu ngóc lên.
-
-    #### 🛑 QUY TẮC 3: CẮT LỖ (BẤT DI BẤT DỊCH)
-    * Nếu giá đóng cửa **THẤP HƠN** mức giá **"🛑 Cắt Lỗ"** hiển thị trên màn hình -> **BÁN NGAY LẬP TỨC**. Không được do dự.
-    * Nếu chỉ báo **SuperTrend** chuyển sang màu Đỏ (BÁO GIẢM) -> Bán hết.
-
-    #### 💰 QUY TẮC 4: CHỐT LỜI
-    * Chạm mức **"🎯 Mục Tiêu"** -> Chốt 50%.
-    * Phần còn lại gồng lãi (trailing stop) cho đến khi SuperTrend báo bán hoặc gãy đường MA20.
-
-    ---
-    > *Lời khuyên: Hãy dùng App như một người trợ lý TỈNH TÁO. Con số không biết nói dối, chỉ có cảm xúc của chúng ta đánh lừa chính mình. Chúc giao dịch thành công! 🛡️💰*
+    ### 📜 BỘ QUY TẮC VÀNG
+    #### ✅ MUA KHI:
+    * **Điểm 8-10 (MUA MẠNH):** Vol nổ + SuperTrend Tăng + Breakout.
+    * **Điểm 6-7 (THĂM DÒ):** Vùng nén Bollinger + RSI quá bán ngóc lên.
+    * **ĐK Cần:** Sức khỏe Doanh nghiệp phải là **Xanh (Kim Cương)** hoặc **Lam (Vững Mạnh)**.
+    #### 🛑 BÁN KHI:
+    * Giá thủng mức **"🛑 Cắt Lỗ"** hiển thị trên màn hình.
+    * SuperTrend báo GIẢM (Đỏ).
     """)
 
 elif mode == "🔮 Phân Tích Chuyên Sâu":
@@ -418,9 +422,9 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
     if symbol:
-        df_calc, df_chart, info, fin, bal, cash, holders, news = load_data_final(symbol, period)
+        df_calc, df_chart, info, fin, bal, cash, holders, news, divs, splits = load_data_final(symbol, period)
         
-        # KIỂM TRA DỮ LIỆU ĐỂ TRÁNH CRASH
+        # KIỂM TRA DỮ LIỆU TRÁNH CRASH (V25)
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
@@ -455,12 +459,12 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                             <div style="font-size: 36px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        with st.expander("🔍 Chi tiết Cơ Bản (Tự tính từ BCTC Quý)", expanded=True):
+                        with st.expander("🔍 Chi tiết Cơ Bản (BCTC Quý)", expanded=True):
                             for d in fund['details']: 
                                 if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                t1, t2, t3, t4, t5 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ"])
+                t1, t2, t3, t4, t5, t6 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức & Sự Kiện"])
                 with t1: render_pro_chart(df_chart, symbol)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -480,23 +484,22 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 with t5:
                     c1, c2 = st.columns([2, 1])
                     with c1: 
-                        # HIỂN THỊ LINK NẾU BỊ CHẶN MÔ TẢ
                         summary = info.get('longBusinessSummary', '')
-                        if "Yahoo" in summary or not summary:
-                            st.warning(summary if summary else "Hiện chưa có mô tả từ Yahoo.")
-                            st.markdown(f"👉 **[Xem chi tiết Hồ Sơ {symbol} trên CafeF](https://s.cafef.vn/hose/{symbol}.chn)**", unsafe_allow_html=True)
-                        else:
-                            st.write(summary)
+                        st.write(summary if summary else "Hiện chưa có mô tả.")
                     with c2:
                         st.info(f"Ngành: {info.get('industry', 'N/A')}")
                         st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
+                with t6:
+                    st.markdown(f"### 🗓️ Lịch Sự Kiện Sắp Tới: [Xem trên CafeF](https://s.cafef.vn/Lich-su-kien/{symbol}.chn)")
+                    render_dividend_chart(divs, splits)
+
             except Exception as e:
                 st.error(f"⚠️ Có lỗi khi xử lý dữ liệu mã {symbol}. Chi tiết: {e}")
         else:
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V23")
+    st.title("📊 Máy Quét Siêu Hạng V26")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -508,7 +511,8 @@ elif mode == "📊 Bảng Giá & Máy Quét":
             for i, t in enumerate(ticks):
                 bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                 try:
-                    df, _, _, _, _, _, _, _ = load_data_final(t, "1y")
+                    # Fix lỗi unpack V26 (nhận đủ 10 biến dù không dùng hết)
+                    df, _, _, _, _, _, _, _, _, _ = load_data_final(t, "1y")
                     s = analyze_smart(df)
                     if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": f"{s['entry']:,.0f}"})
                 except: pass
@@ -524,7 +528,8 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 for j, t in enumerate(ticks):
                     bar.progress((j+1)/len(ticks), f"Đang phân tích: {t}...")
                     try:
-                        df, _, _, _, _, _, _, _ = load_data_final(t, "1y")
+                        # Fix lỗi unpack V26
+                        df, _, _, _, _, _, _, _, _, _ = load_data_final(t, "1y")
                         s = analyze_smart(df)
                         if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": f"{s['entry']:,.0f}"})
                     except: pass
@@ -539,6 +544,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V23 Ultimate - Instruction & Bold UI</div>', unsafe_allow_html=True)
-
-
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V26 Ultimate - Full Option</div>', unsafe_allow_html=True)
