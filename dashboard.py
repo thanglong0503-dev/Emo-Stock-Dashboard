@@ -19,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V30", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V31", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -51,48 +51,28 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN ADAPTIVE (TỰ ĐỘNG THÍCH ỨNG SÁNG/TỐI)
+# 🎨 GIAO DIỆN ADAPTIVE UI (V30)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"): st.session_state['logged_in'] = False; st.rerun()
 st.sidebar.divider()
 
-# CSS THÔNG MINH (Dùng biến var để tự đổi màu theo theme)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    
     html, body, [class*="css"] {font-family: 'Inter', sans-serif !important;}
-    
-    /* Tùy chỉnh màu chữ tiêu đề dựa trên theme (Mặc định Streamlit tự xử lý, ta chỉ chỉnh font weight) */
     h1, h2, h3 {font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(128,128,128,0.2);}
     
-    /* Card: Tự động đổi màu nền theo theme sáng/tối */
     .rec-card {
         background-color: var(--secondary-background-color); 
-        border: 2px solid var(--text-color); /* Viền cùng màu chữ */
-        border-radius: 12px; 
-        padding: 20px; 
-        text-align: center; 
-        margin-bottom: 20px; 
+        border: 2px solid var(--text-color); 
+        border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; 
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    
-    .rec-card h4 {
-        color: var(--text-color) !important; 
-        opacity: 0.8;
-        text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700;
-    }
-    .rec-card h2 {
-        color: var(--primary-color) !important; /* Dùng màu chủ đạo của theme */
-        font-weight: 900 !important; font-size: 2rem !important;
-    }
-
-    /* Metric: Số to rõ */
+    .rec-card h4 {color: var(--text-color) !important; opacity: 0.8; text-transform: uppercase; font-size: 0.85rem; font-weight: 700;}
+    .rec-card h2 {color: var(--primary-color) !important; font-weight: 900 !important; font-size: 2rem !important;}
     [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #0ea5e9 !important;}
-    
-    /* Score Circle */
     .score-circle {
         display: inline-block; width: 70px; height: 70px; line-height: 70px; 
         border-radius: 50%; font-size: 28px; font-weight: 900; color: white; 
@@ -101,14 +81,10 @@ st.markdown("""
     .green-zone {background: linear-gradient(135deg, #10b981, #059669);}
     .red-zone {background: linear-gradient(135deg, #ef4444, #b91c1c);}
     .yellow-zone {background: linear-gradient(135deg, #f59e0b, #d97706);}
-    
     .footer {
-        position: fixed; left: 0; bottom: 0; width: 100%; 
-        background: var(--secondary-background-color); 
-        color: var(--text-color); 
-        text-align: center; font-size: 12px; padding: 10px; 
-        border-top: 1px solid var(--text-color); 
-        z-index: 100; opacity: 0.9;
+        position: fixed; left: 0; bottom: 0; width: 100%; background: var(--secondary-background-color); 
+        color: var(--text-color); text-align: center; font-size: 12px; padding: 10px; 
+        border-top: 1px solid var(--text-color); z-index: 100; opacity: 0.9;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -131,8 +107,27 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU
+# 🧠 XỬ LÝ DỮ LIỆU (THÊM VNINDEX)
 # ==========================================
+@st.cache_data(ttl=300)
+def get_vnindex():
+    # Hàm riêng biệt, siêu nhẹ để lấy VNINDEX
+    try:
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
+        vnindex = yf.Ticker("^VNINDEX", session=session) # Ticker chuẩn Yahoo
+        df = vnindex.history(period="1mo") # Chỉ lấy 1 tháng cho nhẹ
+        if not df.empty:
+            now = df.iloc[-1]; prev = df.iloc[-2]
+            return {
+                "price": now['Close'],
+                "change": now['Close'] - prev['Close'],
+                "pct": (now['Close'] - prev['Close']) / prev['Close'] * 100,
+                "data": df
+            }
+    except: return None
+    return None
+
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
     try:
@@ -229,39 +224,20 @@ def run_monte_carlo(df, days=30, simulations=1000):
         
     simulation_df = pd.DataFrame(price_paths)
     
-    # --- VẼ BIỂU ĐỒ (LUÔN DÙNG DARK THEME CHO NGẦU, HOẶC CHỈNH LẠI NẾU MUỐN) ---
-    # Ở đây Emo vẫn để template='plotly_dark' vì biểu đồ tài chính nền tối nhìn chuyên nghiệp hơn.
-    # Nhưng nếu Ngài muốn nó trắng theo theme thì xóa dòng template='plotly_dark' đi.
     fig = go.Figure()
     dates = [datetime.now() + timedelta(days=i) for i in range(days)]
-    
     for i in range(min(50, simulations)):
         fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False, hoverinfo='skip'))
-        
     mean_path = simulation_df.mean(axis=1)
     fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
-    
-    fig.update_layout(
-        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)),
-        yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
-        template="plotly_dark", # Giữ nền tối cho biểu đồ để dễ nhìn đường màu
-        height=600,
-        hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
-    )
+    fig.update_layout(title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     
     final_prices = simulation_df.iloc[-1]
-    stats = {
-        "mean": final_prices.mean(),
-        "top_5": np.percentile(final_prices, 95),
-        "bot_5": np.percentile(final_prices, 5),
-        "prob_up": (final_prices > last_price).mean() * 100
-    }
-    
+    stats = { "mean": final_prices.mean(), "top_5": np.percentile(final_prices, 95), "bot_5": np.percentile(final_prices, 5), "prob_up": (final_prices > last_price).mean() * 100 }
     fig_hist = px.histogram(final_prices, nbins=50, title="📊 Phân Phối Giá Cuối Kỳ")
     fig_hist.add_vline(x=last_price, line_dash="dash", line_color="red", annotation_text="Giá Hiện Tại")
     fig_hist.update_layout(template="plotly_dark", showlegend=False, margin=dict(l=0,r=0,t=50,b=0))
-
     return fig, fig_hist, stats
 
 # ==========================================
@@ -277,40 +253,31 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)),
-            yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
-            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)), yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT
+# 🧠 PHÂN TÍCH KỸ THUẬT & CƠ BẢN
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 100: return None
-    now = df.iloc[-1]; prev = df.iloc[-2]
-    close = now['Close']
+    now = df.iloc[-1]; prev = df.iloc[-2]; close = now['Close']
     try: st_col = [c for c in df.columns if 'SUPERT' in c][0]; supertrend = now[st_col]
     except: supertrend = close 
-
     mfi = now.get('MFI_14', 50); k = now.get('STOCHRSIk_14_14_3_3', 50); d = now.get('STOCHRSId_14_14_3_3', 50)
-    adx = now.get('ADX_14', 0); ema34 = now.get('EMA_34', 0); ema89 = now.get('EMA_89', 0); atr = now.get('ATRr_14', 0)
-    rsi = now.get('RSI_14', 50); cci = now.get('CCI_20_0.015', 0)
+    ema34 = now.get('EMA_34', 0); ema89 = now.get('EMA_89', 0); atr = now.get('ATRr_14', 0); rsi = now.get('RSI_14', 50)
     vol_now = now['Volume']; vol_avg = now.get('VOL_SMA_20', vol_now)
     bb_upper = now.get('BBU_20_2.0', 0); bb_lower = now.get('BBL_20_2.0', 0); bb_mid = now.get('BBM_20_2.0', close)
-    bandwidth = 0
-    if bb_mid > 0: bandwidth = (bb_upper - bb_lower) / bb_mid
-
+    bandwidth = (bb_upper - bb_lower) / bb_mid if bb_mid > 0 else 0
     score = 0; pros = []; cons = []
-
     if vol_now > 1.5 * vol_avg and close > prev['Close']: score += 2; pros.append(f"🔥 VSA: Tiền vào ồ ạt")
     elif vol_now > 1.2 * vol_avg and close > prev['Close']: score += 1; pros.append("VSA: Dòng tiền tốt")
     if bandwidth < 0.10: 
         pros.append("⚡ Bollinger: Nút thắt cổ chai")
         if close > bb_upper: score += 2; pros.append("=> Breakout Lên!")
         elif close < bb_lower: score -= 2; cons.append("=> Breakdown Xuống!")
-
     if close > supertrend: score += 2; pros.append("SuperTrend: BÁO TĂNG")
     else: score -= 2; cons.append("SuperTrend: BÁO GIẢM")
     if ema34 > ema89 and close > ema34: score += 1; pros.append("EMA System: Xu hướng Tốt")
@@ -319,7 +286,6 @@ def analyze_smart(df):
     elif rsi > 70: score -= 1; cons.append(f"RSI ({rsi:.0f}): Quá mua")
     if mfi < 20: score += 1; pros.append("MFI: Cá mập gom hàng")
     if k < 20 and k > d: score += 1; pros.append("StochRSI: Đảo chiều Tăng")
-
     final_score = max(0, min(10, 4 + score))
     action, zone = "QUAN SÁT", "yellow-zone"
     if final_score >= 8: action, zone = "MUA MẠNH", "green-zone"
@@ -328,9 +294,6 @@ def analyze_smart(df):
     stop_loss = close - 2*atr; take_profit = close + 3*atr
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
-# ==========================================
-# 🧠 PHÂN TÍCH CƠ BẢN
-# ==========================================
 def analyze_fundamental(info, fin, bal, price_now):
     score = 0; details = []
     pe = 0; roe = 0; debt_ratio = 0; net_margin = 0; pb = 0; current_ratio = 0; net_growth = 0
@@ -339,8 +302,7 @@ def analyze_fundamental(info, fin, bal, price_now):
         if mkt_cap == 0 and price_now > 0: mkt_cap = price_now * 1000000000 
         net_income_ttm = 0
         if not fin.empty:
-            cols = fin.columns[:4] 
-            try: net_income_ttm = fin.loc['Net Income'][cols].sum()
+            try: net_income_ttm = fin.loc['Net Income'].iloc[:4].sum()
             except: pass
         if net_income_ttm > 0 and mkt_cap > 0: pe = mkt_cap / net_income_ttm
         else: pe = info.get('trailingPE', 0)
@@ -355,19 +317,15 @@ def analyze_fundamental(info, fin, bal, price_now):
             revenue = fin.loc['Total Revenue'].iloc[0]
             if revenue > 0: net_margin = fin.loc['Net Income'].iloc[0] / revenue
             if len(fin.columns) >= 2:
-                net_now = fin.loc['Net Income'].iloc[0]
-                net_prev = fin.loc['Net Income'].iloc[1]
+                net_now = fin.loc['Net Income'].iloc[0]; net_prev = fin.loc['Net Income'].iloc[1]
                 if abs(net_prev) > 0: net_growth = (net_now - net_prev) / abs(net_prev)
         if not bal.empty and equity > 0:
             try:
-                total_debt = bal.loc['Total Debt'].iloc[0]
-                debt_ratio = (total_debt / equity) * 100
-                curr_asset = bal.loc['Current Assets'].iloc[0]
-                curr_liab = bal.loc['Current Liabilities'].iloc[0]
+                total_debt = bal.loc['Total Debt'].iloc[0]; debt_ratio = (total_debt / equity) * 100
+                curr_asset = bal.loc['Current Assets'].iloc[0]; curr_liab = bal.loc['Current Liabilities'].iloc[0]
                 if curr_liab > 0: current_ratio = curr_asset / curr_liab
             except: pass     
     except: pass
-
     if net_growth > 0.10: score += 2; details.append(f"🚀 LN Quý Tăng trưởng ({net_growth:.1%})")
     elif net_growth < -0.10: details.append(f"⚠️ LN Quý Suy giảm ({net_growth:.1%})")
     if 0 < pe < 15: score += 1; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
@@ -413,45 +371,24 @@ def render_pro_chart(df, symbol):
         fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
         fig.add_trace(go.Bar(x=df.index, y=df['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
-    
-    # LUÔN DÙNG DARK THEME CHO CHART (Hoặc xóa template='plotly_dark' nếu muốn chart trắng)
     fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     st.plotly_chart(fig, use_container_width=True)
 
-# ==========================================
-# 🎁 HÀM VẼ CỔ TỨC (V27)
-# ==========================================
 def render_dividend_chart(dividends, splits):
     if not dividends.empty:
         div_df = dividends.reset_index()
         div_df.columns = ['Date', 'Amount']
         div_df['Date'] = div_df['Date'].dt.tz_localize(None)
         div_df = div_df[div_df['Date'] > datetime.now().replace(year=datetime.now().year - 5)]
-        
         fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=div_df['Date'], y=div_df['Amount'], 
-            marker_color='#10b981', name='Cổ tức (Tiền)',
-            hovertemplate='Ngày: %{x|%d/%m/%Y}<br>💰 %{y:,.0f} đ<extra></extra>'
-        ))
-        fig.update_layout(
-            title=dict(text="💰 Lịch Sử Trả Cổ Tức (5 Năm)", font=dict(size=20)),
-            yaxis_title="Số Tiền (VND)", xaxis_title="Thời Gian",
-            template="plotly_dark", height=500,
-            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
-        )
+        fig.add_trace(go.Bar(x=div_df['Date'], y=div_df['Amount'], marker_color='#10b981', name='Cổ tức (Tiền)', hovertemplate='Ngày: %{x|%d/%m/%Y}<br>💰 %{y:,.0f} đ<extra></extra>'))
+        fig.update_layout(title=dict(text="💰 Lịch Sử Trả Cổ Tức (5 Năm)", font=dict(size=20)), yaxis_title="Số Tiền (VND)", xaxis_title="Thời Gian", template="plotly_dark", height=500, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         st.plotly_chart(fig, use_container_width=True)
-        
-        with st.expander("📋 Xem chi tiết lịch sử"):
-            st.dataframe(div_df.sort_values('Date', ascending=False).style.format({"Amount": "{:,.0f} đ"}), use_container_width=True)
-    else:
-        st.info("Không có dữ liệu trả cổ tức trong thời gian gần đây.")
-    
-    if not splits.empty:
-        st.subheader("✂️ Lịch Sử Chia Tách")
-        st.write(splits.sort_index(ascending=False).head(5))
+        with st.expander("📋 Xem chi tiết lịch sử"): st.dataframe(div_df.sort_values('Date', ascending=False).style.format({"Amount": "{:,.0f} đ"}), use_container_width=True)
+    else: st.info("Không có dữ liệu trả cổ tức trong thời gian gần đây.")
+    if not splits.empty: st.subheader("✂️ Lịch Sử Chia Tách"); st.write(splits.sort_index(ascending=False).head(5))
 
 # ==========================================
 # 🖥️ MAIN UI
@@ -481,6 +418,22 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
 
 elif mode == "🔮 Phân Tích Chuyên Sâu":
     st.header("🔮 Phân Tích Chuyên Sâu")
+    
+    # === VNINDEX WATCH (V31 - MỚI) ===
+    with st.expander("📊 Chỉ số VNINDEX hôm nay (Bấm để xem)", expanded=True):
+        vni = get_vnindex()
+        if vni:
+            cm1, cm2 = st.columns([1, 3])
+            with cm1:
+                st.metric("VN-INDEX", f"{vni['price']:,.2f}", f"{vni['change']:,.2f} ({vni['pct']:.2f}%)")
+            with cm2:
+                # Vẽ biểu đồ mini cho VNINDEX
+                fig_vni = go.Figure()
+                fig_vni.add_trace(go.Scatter(x=vni['data'].index, y=vni['data']['Close'], mode='lines', line=dict(color='#22d3ee', width=2), fill='tozeroy', fillcolor='rgba(34, 211, 238, 0.1)'))
+                fig_vni.update_layout(height=100, margin=dict(l=0,r=0,t=0,b=0), template="plotly_dark", xaxis_visible=False, yaxis_visible=False)
+                st.plotly_chart(fig_vni, use_container_width=True)
+        else: st.warning("Không tải được dữ liệu VNINDEX lúc này.")
+    
     c1, c2 = st.columns([3, 1])
     with c1: symbol = st.text_input("Nhập Mã CP", value="HPG").upper()
     with c2: 
@@ -491,7 +444,6 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news, divs, splits = load_data_final(symbol, period)
         
-        # KIỂM TRA DỮ LIỆU TRÁNH CRASH (V25)
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
@@ -540,10 +492,9 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
                         else: st.error(msg_ai)
                     else: st.warning("⚠️ Chưa cài thư viện Prophet")
-                with t3: # TAB MONTE CARLO (NÂNG CẤP V29)
+                with t3: # TAB MONTE CARLO
                     with st.spinner("🌌 Đang mở cổng đa vũ trụ..."):
                         fig_mc, fig_hist, stats = run_monte_carlo(df_calc)
-                    
                     if fig_mc:
                         st.plotly_chart(fig_mc, use_container_width=True)
                         m1, m2, m3, m4 = st.columns(4)
@@ -579,7 +530,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V30")
+    st.title("📊 Máy Quét Siêu Hạng V31")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -622,4 +573,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V30 Ultimate - Adaptive UI</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V31 Ultimate - Market Watch</div>', unsafe_allow_html=True)
