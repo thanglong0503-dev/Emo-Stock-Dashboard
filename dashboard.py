@@ -17,14 +17,14 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V26", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V27", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
 # ==========================================
 USERS_DB = {
     "admin": "admin123", "stock": "stock123", "guest": "123456",
-    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456","Mrquynh": "123456"
+    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456"
 }
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
@@ -48,7 +48,7 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO (V23 - BOLD STYLE)
+# 🎨 GIAO DIỆN DARK MODE PRO
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
@@ -108,7 +108,7 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (FULL OPTION V25 + V26)
+# 🧠 XỬ LÝ DỮ LIỆU
 # ==========================================
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
@@ -121,15 +121,13 @@ def load_news_google(symbol):
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
     t = f"{ticker}.VN"
-    
-    # Kỹ thuật ngụy trang Session (V24)
     try:
         session = requests.Session()
         session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
         stock = yf.Ticker(t, session=session)
     except: stock = yf.Ticker(t)
     
-    # 1. TÍNH TOÁN KỸ THUẬT
+    # 1. KỸ THUẬT
     try:
         df_calc = stock.history(period="2y")
         if len(df_calc) > 100:
@@ -144,7 +142,7 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
     except: df_calc = pd.DataFrame()
 
-    # 2. DỮ LIỆU BIỂU ĐỒ
+    # 2. BIỂU ĐỒ
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
@@ -153,7 +151,7 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
     except: df_chart = pd.DataFrame()
 
-    # 3. DỮ LIỆU TÀI CHÍNH & HỒ SƠ (Clean + Fix Lỗi 404 V25)
+    # 3. TÀI CHÍNH & INFO
     try: info = stock.info
     except: info = {}
     
@@ -163,11 +161,8 @@ def load_data_final(ticker, time):
             if info is None: info = {}
             info['marketCap'] = fast.get('market_cap', 0)
             info['currentPrice'] = fast.get('last_price', 0)
-            
-            # Tên hiển thị Sạch
             info['longName'] = f"Cổ Phiếu {ticker}" 
             info['industry'] = "Đang cập nhật..."
-            # Link tra cứu tinh tế (V24)
             info['longBusinessSummary'] = f"Chi tiết hồ sơ doanh nghiệp & Ban lãnh đạo:\n\n👉 **[Tra cứu tại Vietstock](https://finance.vietstock.vn/{ticker})**\n👉 **[Tra cứu tại CafeF](https://s.cafef.vn/tim-kiem.chn?keywords={ticker})**"
     except: pass
 
@@ -180,7 +175,7 @@ def load_data_final(ticker, time):
     try: holders = stock.major_holders
     except: holders = pd.DataFrame()
 
-    # 4. DỮ LIỆU CỔ TỨC (V26)
+    # 4. CỔ TỨC
     try: 
         dividends = stock.dividends
         splits = stock.splits
@@ -192,7 +187,7 @@ def load_data_final(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
 
 # ==========================================
-# 🧠 AI PREDICTION (PROPHET V2)
+# 🧠 AI PREDICTION
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
@@ -202,22 +197,17 @@ def run_prophet_forecast(df, periods=90):
         df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
         m = Prophet(daily_seasonality=True); m.fit(df_prophet)
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
-        
         fig = plot_plotly(m, forecast)
-        fig.data[0].marker.color = '#22d3ee' # Cyan Dots
-        fig.data[1].line.color = '#f472b6' # Pink Line
-        fig.update_layout(
-            title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
-            yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
-            template="plotly_dark", height=600,
-            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
-        )
+        fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
+            yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
+            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT (SMART VSA)
+# 🧠 PHÂN TÍCH KỸ THUẬT
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 100: return None
@@ -257,49 +247,39 @@ def analyze_smart(df):
     if final_score >= 8: action, zone = "MUA MẠNH", "green-zone"
     elif final_score >= 6: action, zone = "MUA THĂM DÒ", "green-zone"
     elif final_score <= 3: action, zone = "BÁN / CẮT LỖ", "red-zone"
-    
     stop_loss = close - 2*atr; take_profit = close + 3*atr
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
 # ==========================================
-# 🧠 PHÂN TÍCH CƠ BẢN (ROBUST CALCULATION V25)
+# 🧠 PHÂN TÍCH CƠ BẢN
 # ==========================================
 def analyze_fundamental(info, fin, bal, price_now):
     score = 0; details = []
     pe = 0; roe = 0; debt_ratio = 0; net_margin = 0; pb = 0; current_ratio = 0; net_growth = 0
-
     try:
         mkt_cap = info.get('marketCap', 0)
         if mkt_cap == 0 and price_now > 0: mkt_cap = price_now * 1000000000 
-
-        # Tự tính P/E
         net_income_ttm = 0
         if not fin.empty:
             cols = fin.columns[:4] 
             try: net_income_ttm = fin.loc['Net Income'][cols].sum()
             except: pass
-        
         if net_income_ttm > 0 and mkt_cap > 0: pe = mkt_cap / net_income_ttm
         else: pe = info.get('trailingPE', 0)
-
-        # Các chỉ số khác
         equity = 0
         if not bal.empty:
             try: equity = bal.loc['Stockholders Equity'].iloc[0];
             except: pass
-        
         if not fin.empty and equity > 0:
             if net_income_ttm != 0: roe = net_income_ttm / equity
             else: roe = (fin.loc['Net Income'].iloc[0] * 4) / equity
             pb = mkt_cap / equity 
             revenue = fin.loc['Total Revenue'].iloc[0]
             if revenue > 0: net_margin = fin.loc['Net Income'].iloc[0] / revenue
-            
             if len(fin.columns) >= 2:
                 net_now = fin.loc['Net Income'].iloc[0]
                 net_prev = fin.loc['Net Income'].iloc[1]
                 if abs(net_prev) > 0: net_growth = (net_now - net_prev) / abs(net_prev)
-
         if not bal.empty and equity > 0:
             try:
                 total_debt = bal.loc['Total Debt'].iloc[0]
@@ -318,7 +298,6 @@ def analyze_fundamental(info, fin, bal, price_now):
     if net_margin > 0.10: score += 1; details.append(f"Biên lãi ròng cao ({net_margin:.1%})")
     if 0 < debt_ratio < 60: score += 1; details.append(f"Nợ vay an toàn ({debt_ratio:.0f}%)")
     if current_ratio > 1.5: score += 1; details.append(f"Thanh khoản tốt ({current_ratio:.1f})")
-
     if score == 0 and len(details) == 0: details.append("Chưa đủ dữ liệu BCTC")
     health, color = ("TRUNG BÌNH", "#f59e0b")
     if score >= 6: health, color = ("KIM CƯƠNG 💎", "#10b981") 
@@ -361,7 +340,7 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🎁 HÀM VẼ CỔ TỨC (V26)
+# 🎁 HÀM VẼ CỔ TỨC (V27 - NÂNG CẤP)
 # ==========================================
 def render_dividend_chart(dividends, splits):
     if not dividends.empty:
@@ -372,9 +351,20 @@ def render_dividend_chart(dividends, splits):
         # Chỉ lấy 5 năm gần nhất
         div_df = div_df[div_df['Date'] > datetime.now().replace(year=datetime.now().year - 5)]
         
+        # Biểu đồ V27: Có Hover + Zoom + Pan + RangeSlider
         fig = go.Figure()
-        fig.add_trace(go.Bar(x=div_df['Date'], y=div_df['Amount'], marker_color='#10b981', name='Cổ tức tiền mặt'))
-        fig.update_layout(title="💰 Lịch Sử Trả Cổ Tức (5 Năm)", template="plotly_dark", height=400)
+        fig.add_trace(go.Bar(
+            x=div_df['Date'], y=div_df['Amount'], 
+            marker_color='#10b981', name='Cổ tức (Tiền)',
+            hovertemplate='Ngày: %{x|%d/%m/%Y}<br>💰 %{y:,.0f} đ<extra></extra>'
+        ))
+        fig.update_layout(
+            title=dict(text="💰 Lịch Sử Trả Cổ Tức (5 Năm)", font=dict(size=20, color='white')),
+            yaxis_title="Số Tiền (VND)", xaxis_title="Thời Gian",
+            template="plotly_dark", height=500,
+            hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
+        )
+        fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         st.plotly_chart(fig, use_container_width=True)
         
         with st.expander("📋 Xem chi tiết lịch sử"):
@@ -499,7 +489,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V26")
+    st.title("📊 Máy Quét Siêu Hạng V27")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -544,5 +534,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V26 Ultimate - Full Option</div>', unsafe_allow_html=True)
-
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V27 Ultimate - Unified UI</div>', unsafe_allow_html=True)
