@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import numpy as np  # Thư viện Toán học
+import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
 import plotly.express as px
@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
 from datetime import datetime, timedelta
-import requests 
+import requests
 
 # --- THƯ VIỆN AI (PROPHET) ---
 try:
@@ -19,22 +19,15 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V29", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V30", page_icon="🐲")
 
 # ==========================================
-# 🔐 HỆ THỐNG ĐĂNG NHẬP (FULL LIST)
+# 🔐 HỆ THỐNG ĐĂNG NHẬP
 # ==========================================
 USERS_DB = {
-    "admin": "admin123", 
-    "stock": "stock123", 
-    "guest": "123456",
-    "guest1": "123456", 
-    "huydang": "123456", 
-    "kieuoanh": "123456", 
-    "uyennhi": "123456",
-    "Mrquynh": "123456",
-    "Msnhung": "123456",
-    "thanhduc": "123456"
+    "admin": "admin123", "stock": "stock123", "guest": "123456",
+    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456",
+    "Mrquynh": "123456", "Msnhung": "123456", "thanhduc": "123456"
 }
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
@@ -58,35 +51,48 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO
+# 🎨 GIAO DIỆN ADAPTIVE (TỰ ĐỘNG THÍCH ỨNG SÁNG/TỐI)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
 if st.sidebar.button("👋 Đăng Xuất"): st.session_state['logged_in'] = False; st.rerun()
 st.sidebar.divider()
 
+# CSS THÔNG MINH (Dùng biến var để tự đổi màu theo theme)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-    html, body, [class*="css"] {font-family: 'Inter', sans-serif !important; color: #e2e8f0;}
     
-    h1, h2, h3 {color: #ffffff !important; font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(0,0,0,0.5);}
+    html, body, [class*="css"] {font-family: 'Inter', sans-serif !important;}
     
+    /* Tùy chỉnh màu chữ tiêu đề dựa trên theme (Mặc định Streamlit tự xử lý, ta chỉ chỉnh font weight) */
+    h1, h2, h3 {font-weight: 800 !important; text-shadow: 0px 0px 10px rgba(128,128,128,0.2);}
+    
+    /* Card: Tự động đổi màu nền theo theme sáng/tối */
     .rec-card {
-        background-color: #1e293b; 
-        border: 2px solid #0f172a; 
+        background-color: var(--secondary-background-color); 
+        border: 2px solid var(--text-color); /* Viền cùng màu chữ */
         border-radius: 12px; 
         padding: 20px; 
         text-align: center; 
         margin-bottom: 20px; 
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
-    .rec-card h4 {color: #94a3b8 !important; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700;}
-    .rec-card h2 {font-weight: 900 !important; font-size: 2rem !important;}
-
-    [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #38bdf8 !important;}
-    [data-testid="stMetricLabel"] {color: #cbd5e1 !important; font-weight: 600;}
     
+    .rec-card h4 {
+        color: var(--text-color) !important; 
+        opacity: 0.8;
+        text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700;
+    }
+    .rec-card h2 {
+        color: var(--primary-color) !important; /* Dùng màu chủ đạo của theme */
+        font-weight: 900 !important; font-size: 2rem !important;
+    }
+
+    /* Metric: Số to rõ */
+    [data-testid="stMetricValue"] {font-size: 1.6rem !important; font-weight: 900 !important; color: #0ea5e9 !important;}
+    
+    /* Score Circle */
     .score-circle {
         display: inline-block; width: 70px; height: 70px; line-height: 70px; 
         border-radius: 50%; font-size: 28px; font-weight: 900; color: white; 
@@ -96,7 +102,14 @@ st.markdown("""
     .red-zone {background: linear-gradient(135deg, #ef4444, #b91c1c);}
     .yellow-zone {background: linear-gradient(135deg, #f59e0b, #d97706);}
     
-    .footer {position: fixed; left: 0; bottom: 0; width: 100%; background: #0f172a; color: #64748b; text-align: center; font-size: 12px; padding: 10px; border-top: 1px solid #1e293b; z-index: 100;}
+    .footer {
+        position: fixed; left: 0; bottom: 0; width: 100%; 
+        background: var(--secondary-background-color); 
+        color: var(--text-color); 
+        text-align: center; font-size: 12px; padding: 10px; 
+        border-top: 1px solid var(--text-color); 
+        z-index: 100; opacity: 0.9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -197,7 +210,7 @@ def load_data_final(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
 
 # ==========================================
-# 🧠 MONTE CARLO SIMULATION (V29 - PRO UI)
+# 🧠 MONTE CARLO SIMULATION
 # ==========================================
 def run_monte_carlo(df, days=30, simulations=1000):
     if df.empty: return None, "Không đủ dữ liệu"
@@ -216,28 +229,27 @@ def run_monte_carlo(df, days=30, simulations=1000):
         
     simulation_df = pd.DataFrame(price_paths)
     
-    # --- VẼ BIỂU ĐỒ TƯƠNG TÁC ---
+    # --- VẼ BIỂU ĐỒ (LUÔN DÙNG DARK THEME CHO NGẦU, HOẶC CHỈNH LẠI NẾU MUỐN) ---
+    # Ở đây Emo vẫn để template='plotly_dark' vì biểu đồ tài chính nền tối nhìn chuyên nghiệp hơn.
+    # Nhưng nếu Ngài muốn nó trắng theo theme thì xóa dòng template='plotly_dark' đi.
     fig = go.Figure()
     dates = [datetime.now() + timedelta(days=i) for i in range(days)]
     
-    # Vẽ 50 đường mờ
     for i in range(min(50, simulations)):
         fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False, hoverinfo='skip'))
         
-    # Đường trung bình (Nổi bật)
     mean_path = simulation_df.mean(axis=1)
-    fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình (Kỳ Vọng)'))
+    fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
     
-    # Cấu hình giao diện (Range Slider + Pan + Zoom)
     fig.update_layout(
-        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20, color='white')),
+        title=dict(text=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", font=dict(size=20)),
         yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian",
-        template="plotly_dark", height=600,
+        template="plotly_dark", # Giữ nền tối cho biểu đồ để dễ nhìn đường màu
+        height=600,
         hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
     )
-    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05)) # <--- ĐÃ THÊM THANH TRƯỢT
+    fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     
-    # Thống kê
     final_prices = simulation_df.iloc[-1]
     stats = {
         "mean": final_prices.mean(),
@@ -265,7 +277,7 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20)),
             yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
             hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
@@ -401,19 +413,20 @@ def render_pro_chart(df, symbol):
         fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df['MACDs_12_26_9'], line=dict(color='#f472b6', width=1.5), name='Signal'), row=3, col=1)
         fig.add_trace(go.Bar(x=df.index, y=df['MACDh_12_26_9'], marker_color='#64748b', name='Hist'), row=3, col=1)
+    
+    # LUÔN DÙNG DARK THEME CHO CHART (Hoặc xóa template='plotly_dark' nếu muốn chart trắng)
     fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🎁 HÀM VẼ CỔ TỨC
+# 🎁 HÀM VẼ CỔ TỨC (V27)
 # ==========================================
 def render_dividend_chart(dividends, splits):
     if not dividends.empty:
         div_df = dividends.reset_index()
         div_df.columns = ['Date', 'Amount']
         div_df['Date'] = div_df['Date'].dt.tz_localize(None)
-        
         div_df = div_df[div_df['Date'] > datetime.now().replace(year=datetime.now().year - 5)]
         
         fig = go.Figure()
@@ -423,7 +436,7 @@ def render_dividend_chart(dividends, splits):
             hovertemplate='Ngày: %{x|%d/%m/%Y}<br>💰 %{y:,.0f} đ<extra></extra>'
         ))
         fig.update_layout(
-            title=dict(text="💰 Lịch Sử Trả Cổ Tức (5 Năm)", font=dict(size=20, color='white')),
+            title=dict(text="💰 Lịch Sử Trả Cổ Tức (5 Năm)", font=dict(size=20)),
             yaxis_title="Số Tiền (VND)", xaxis_title="Thời Gian",
             template="plotly_dark", height=500,
             hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0)
@@ -478,6 +491,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news, divs, splits = load_data_final(symbol, period)
         
+        # KIỂM TRA DỮ LIỆU TRÁNH CRASH (V25)
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
@@ -565,7 +579,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V29")
+    st.title("📊 Máy Quét Siêu Hạng V30")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -608,4 +622,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V29 Ultimate - Multiverse PRO UI</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V30 Ultimate - Adaptive UI</div>', unsafe_allow_html=True)
