@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
+import numpy as np  # Thêm thư viện Toán học
 import yfinance as yf
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests 
 
 # --- THƯ VIỆN AI (PROPHET) ---
@@ -17,14 +19,21 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V27", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V28", page_icon="🐲")
 
 # ==========================================
-# 🔐 HỆ THỐNG ĐĂNG NHẬP
+# 🔐 HỆ THỐNG ĐĂNG NHẬP (FULL DANH SÁCH)
 # ==========================================
 USERS_DB = {
-    "admin": "admin123", "stock": "stock123", "guest": "123456",
-    "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456","Mrquynh": "123456","Msnhung": "123456",
+    "admin": "admin123", 
+    "stock": "stock123", 
+    "guest": "123456",
+    "guest1": "123456", 
+    "huydang": "123456", 
+    "kieuoanh": "123456", 
+    "uyennhi": "123456",
+    "Mrquynh": "123456",
+    "Msnhung": "123456",
     "thanhduc": "123456"
 }
 
@@ -49,7 +58,7 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN DARK MODE PRO
+# 🎨 GIAO DIỆN DARK MODE PRO (V23 STYLE)
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
@@ -188,6 +197,68 @@ def load_data_final(ticker, time):
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
 
 # ==========================================
+# 🧠 MONTE CARLO SIMULATION (NEW V28)
+# ==========================================
+def run_monte_carlo(df, days=30, simulations=1000):
+    if df.empty: return None, "Không đủ dữ liệu"
+    
+    # 1. Tính toán biến động
+    data = df['Close']
+    returns = data.pct_change().dropna()
+    mu = returns.mean()
+    sigma = returns.std()
+    last_price = data.iloc[-1]
+    
+    # 2. Chạy mô phỏng (Random Walk)
+    simulation_df = pd.DataFrame()
+    
+    # Tạo ma trận ngẫu nhiên nhanh hơn vòng lặp
+    # shape: (days, simulations)
+    # Công thức: Price_t = Price_{t-1} * exp((mu - 0.5 * sigma^2) + sigma * Z)
+    drift = mu - 0.5 * sigma**2
+    Z = np.random.normal(0, 1, (days, simulations))
+    daily_returns = np.exp(drift + sigma * Z)
+    
+    price_paths = np.zeros_like(daily_returns)
+    price_paths[0] = last_price
+    
+    for t in range(1, days):
+        price_paths[t] = price_paths[t-1] * daily_returns[t]
+        
+    simulation_df = pd.DataFrame(price_paths)
+    
+    # 3. Vẽ biểu đồ "Mì Spaghetti" (Chỉ vẽ 50 đường cho nhẹ)
+    fig = go.Figure()
+    dates = [datetime.now() + timedelta(days=i) for i in range(days)]
+    
+    for i in range(min(50, simulations)):
+        fig.add_trace(go.Scatter(x=dates, y=simulation_df.iloc[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+        
+    # Đường trung bình
+    mean_path = simulation_df.mean(axis=1)
+    fig.add_trace(go.Scatter(x=dates, y=mean_path, mode='lines', line=dict(color='#22d3ee', width=4), name='Trung Bình'))
+    
+    fig.update_layout(title=f"🌌 Đa Vũ Trụ: {simulations} Kịch Bản (30 Ngày)", template="plotly_dark", height=500, hovermode="x unified")
+    
+    # 4. Thống kê kết quả cuối cùng
+    final_prices = simulation_df.iloc[-1]
+    stats = {
+        "mean": final_prices.mean(),
+        "max": final_prices.max(),
+        "min": final_prices.min(),
+        "top_5": np.percentile(final_prices, 95),
+        "bot_5": np.percentile(final_prices, 5),
+        "prob_up": (final_prices > last_price).mean() * 100
+    }
+    
+    # Biểu đồ phân phối
+    fig_hist = px.histogram(final_prices, nbins=50, title="📊 Phân Phối Giá Cuối Kỳ")
+    fig_hist.add_vline(x=last_price, line_dash="dash", line_color="red", annotation_text="Giá Hiện Tại")
+    fig_hist.update_layout(template="plotly_dark", showlegend=False)
+
+    return fig, fig_hist, stats
+
+# ==========================================
 # 🧠 AI PREDICTION
 # ==========================================
 def run_prophet_forecast(df, periods=90):
@@ -200,7 +271,7 @@ def run_prophet_forecast(df, periods=90):
         future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
         fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='Blue')),
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo (90 Ngày Tới)", font=dict(size=20, color='white')),
             yaxis_title="Giá Dự Kiến", xaxis_title="Thời Gian", template="plotly_dark", height=600,
             hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
@@ -341,7 +412,7 @@ def render_pro_chart(df, symbol):
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 🎁 HÀM VẼ CỔ TỨC (V27 - NÂNG CẤP)
+# 🎁 HÀM VẼ CỔ TỨC
 # ==========================================
 def render_dividend_chart(dividends, splits):
     if not dividends.empty:
@@ -349,10 +420,8 @@ def render_dividend_chart(dividends, splits):
         div_df.columns = ['Date', 'Amount']
         div_df['Date'] = div_df['Date'].dt.tz_localize(None)
         
-        # Chỉ lấy 5 năm gần nhất
         div_df = div_df[div_df['Date'] > datetime.now().replace(year=datetime.now().year - 5)]
         
-        # Biểu đồ V27: Có Hover + Zoom + Pan + RangeSlider
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=div_df['Date'], y=div_df['Amount'], 
@@ -389,7 +458,7 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
     2.  **Technical (Kỹ thuật):** Dòng tiền "Cá mập" vào, Giá Breakout.
     ---
     ### 🛠️ CÁCH SỬ DỤNG
-    1.  **🔮 Phân Tích Chuyên Sâu:** Soi chi tiết từng mã (Biểu đồ, AI Prophet, BCTC, Cổ tức).
+    1.  **🔮 Phân Tích Chuyên Sâu:** Soi chi tiết từng mã (Biểu đồ, AI Prophet, BCTC, Cổ tức, Monte Carlo).
     2.  **📊 Bảng Giá & Máy Quét:** Lọc nhanh cơ hội toàn thị trường.
     3.  **📘 Hướng Dẫn:** Ôn lại quy tắc.
     ---
@@ -415,7 +484,6 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     if symbol:
         df_calc, df_chart, info, fin, bal, cash, holders, news, divs, splits = load_data_final(symbol, period)
         
-        # KIỂM TRA DỮ LIỆU TRÁNH CRASH (V25)
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
@@ -455,7 +523,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                t1, t2, t3, t4, t5, t6 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức & Sự Kiện"])
+                t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
                 with t1: render_pro_chart(df_chart, symbol)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -464,15 +532,28 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
                         else: st.error(msg_ai)
                     else: st.warning("⚠️ Chưa cài thư viện Prophet")
-                with t3:
-                    for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
+                with t3: # TAB MONTE CARLO MỚI
+                    with st.spinner("🌌 Đang mở cổng đa vũ trụ (Simulating 1000 futures)..."):
+                        fig_mc, fig_hist, stats = run_monte_carlo(df_calc)
+                    
+                    if fig_mc:
+                        st.plotly_chart(fig_mc, use_container_width=True)
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("Trung Bình (Exp)", f"{stats['mean']:,.0f}")
+                        m2.metric("Lạc Quan (Top 5%)", f"{stats['top_5']:,.0f}", delta="Best Case", delta_color="normal")
+                        m3.metric("Bi Quan (Bot 5%)", f"{stats['bot_5']:,.0f}", delta="Worst Case", delta_color="inverse")
+                        m4.metric("Tỷ Lệ Tăng Giá", f"{stats['prob_up']:.1f}%")
+                        st.plotly_chart(fig_hist, use_container_width=True)
+                    else: st.error("Không đủ dữ liệu mô phỏng.")
                 with t4:
+                    for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
+                with t5:
                     c_left, c_right = st.columns(2)
                     with c_left: st.subheader("Kinh Doanh (Quý)"); st.dataframe(clean_table(fin), use_container_width=True)
                     with c_right: st.subheader("Cân Đối Kế Toán (Quý)"); st.dataframe(clean_table(bal), use_container_width=True)
                     st.subheader("Lưu Chuyển Tiền Tệ")
                     st.dataframe(clean_table(cash), use_container_width=True)
-                with t5:
+                with t6:
                     c1, c2 = st.columns([2, 1])
                     with c1: 
                         summary = info.get('longBusinessSummary', '')
@@ -480,8 +561,8 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     with c2:
                         st.info(f"Ngành: {info.get('industry', 'N/A')}")
                         st.success(f"Nhân sự: {safe_fmt(info.get('fullTimeEmployees', 'N/A'))}")
-                with t6:
-                    st.markdown(f"### 🗓️ Lịch Sự Kiện Sắp Tới: [Xem trên CafeF](https://s.cafef.vn/Lich-su-kien/{symbol}.chn)")
+                with t7:
+                    st.markdown(f"### 🗓️ Lịch Sự Kiện: [Xem trên CafeF](https://s.cafef.vn/Lich-su-kien/{symbol}.chn)")
                     render_dividend_chart(divs, splits)
 
             except Exception as e:
@@ -490,7 +571,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V27")
+    st.title("📊 Máy Quét Siêu Hạng V28")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -502,7 +583,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
             for i, t in enumerate(ticks):
                 bar.progress((i+1)/len(ticks), f"Đang phân tích: {t}...")
                 try:
-                    # Fix lỗi unpack V26 (nhận đủ 10 biến dù không dùng hết)
                     df, _, _, _, _, _, _, _, _, _ = load_data_final(t, "1y")
                     s = analyze_smart(df)
                     if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": f"{s['entry']:,.0f}"})
@@ -519,7 +599,6 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                 for j, t in enumerate(ticks):
                     bar.progress((j+1)/len(ticks), f"Đang phân tích: {t}...")
                     try:
-                        # Fix lỗi unpack V26
                         df, _, _, _, _, _, _, _, _, _ = load_data_final(t, "1y")
                         s = analyze_smart(df)
                         if s: res.append({"Mã": t, "Điểm": s['score'], "Hành động": s['action'], "Giá": f"{s['entry']:,.0f}"})
@@ -535,7 +614,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V27 Ultimate - Unified UI</div>', unsafe_allow_html=True)
-
-
-
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V28 Ultimate - Multiverse Edition</div>', unsafe_allow_html=True)
