@@ -19,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V35", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V36", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -140,65 +140,37 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
-            # --- THÊM ICHIMOKU (V35) ---
+            # Ichimoku
             try:
-                # Tính Ichimoku: Tenkan(9), Kijun(26), SpanA(26), SpanB(52), Lagging(26)
                 ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
-                # ichi[0] chứa data, ichi[1] chứa Span A/B (đã shift)
-                # Ta nối cái DataFrame chính (ichi[0]) vào
-                if ichi is not None:
-                    df_calc = pd.concat([df_calc, ichi[0]], axis=1)
+                if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
             except: pass
-
     except: df_calc = pd.DataFrame()
 
-    # 2. BIỂU ĐỒ
+    # 2. BIỂU ĐỒ (Cần dữ liệu để vẽ nến)
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
-            # Thêm Ichimoku cho chart (Nếu là Daily)
+            # Ichimoku Chart
             if interval == '1d':
                 try:
                     ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_chart is not None:
-                        df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
+                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
                 except: pass
     except: df_chart = pd.DataFrame()
 
-    # 3. TÀI CHÍNH & INFO
+    # 3. INFO & BCTC
     try: info = stock.info
     except: info = {}
-    
-    try:
-        fast = stock.fast_info
-        if info is None or info.get('marketCap') is None:
-            if info is None: info = {}
-            info['marketCap'] = fast.get('market_cap', 0)
-            info['currentPrice'] = fast.get('last_price', 0)
-            info['longName'] = f"Cổ Phiếu {ticker}" 
-            info['industry'] = "Đang cập nhật..."
-            info['longBusinessSummary'] = f"Chi tiết hồ sơ doanh nghiệp & Ban lãnh đạo:\n\n👉 **[Tra cứu tại Vietstock](https://finance.vietstock.vn/{ticker})**\n👉 **[Tra cứu tại CafeF](https://s.cafef.vn/tim-kiem.chn?keywords={ticker})**"
+    try: fast = stock.fast_info; info['marketCap'] = fast.get('market_cap', 0); info['currentPrice'] = fast.get('last_price', 0); info['longName'] = f"Cổ Phiếu {ticker}"
     except: pass
-
-    try: fin = stock.quarterly_financials 
-    except: fin = pd.DataFrame()
-    try: bal = stock.quarterly_balance_sheet 
-    except: bal = pd.DataFrame()
-    try: cash = stock.quarterly_cashflow 
-    except: cash = pd.DataFrame()
-    try: holders = stock.major_holders
-    except: holders = pd.DataFrame()
-
-    # 4. CỔ TỨC
-    try: 
-        dividends = stock.dividends
-        splits = stock.splits
-    except: 
-        dividends = pd.Series(dtype='float64')
-        splits = pd.Series(dtype='float64')
+    try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
+    except: fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    try: dividends = stock.dividends; splits = stock.splits
+    except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
 
     news = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
@@ -248,7 +220,7 @@ def run_prophet_forecast(df, periods=90):
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT (UPDATE ICHIMOKU V35)
+# 🧠 PHÂN TÍCH KỸ THUẬT
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 50: return None
@@ -260,8 +232,6 @@ def analyze_smart(df):
     vol_now = now['Volume']; vol_avg = now.get('VOL_SMA_20', vol_now)
     bb_upper = now.get('BBU_20_2.0', 0); bb_lower = now.get('BBL_20_2.0', 0); bb_mid = now.get('BBM_20_2.0', close)
     bandwidth = (bb_upper - bb_lower) / bb_mid if bb_mid > 0 else 0
-    
-    # Ichimoku Logic
     tenkan = now.get('ITS_9', 0); kijun = now.get('IKS_26', 0)
     
     score = 0; pros = []; cons = []
@@ -274,12 +244,9 @@ def analyze_smart(df):
         elif close < bb_lower: score -= 2; cons.append("=> Breakdown Xuống!")
     if close > supertrend: score += 2; pros.append("SuperTrend: BÁO TĂNG")
     else: score -= 2; cons.append("SuperTrend: BÁO GIẢM")
-    
-    # Ichimoku Scoring
     if tenkan > 0 and kijun > 0:
-        if tenkan > kijun and close > tenkan: score += 1; pros.append("Ichimoku: Xu hướng Tăng (Tenkan > Kijun)")
+        if tenkan > kijun and close > tenkan: score += 1; pros.append("Ichimoku: Xu hướng Tăng")
         elif tenkan < kijun: score -= 1; cons.append("Ichimoku: Xu hướng Giảm")
-
     if ema34 > ema89 and close > ema34: score += 1; pros.append("EMA System: Xu hướng Tốt")
     elif close < ema89: score -= 1; cons.append("EMA System: Gãy xu hướng")
     if rsi < 30: score += 1; pros.append(f"RSI ({rsi:.0f}): Quá bán")
@@ -341,7 +308,7 @@ def analyze_fundamental(info, fin, bal, price_now):
     return {"health": health, "color": color, "details": details}
 
 # ==========================================
-# 🛠️ HÀM HỖ TRỢ & CHART (FIBO + ICHIMOKU V35)
+# 🛠️ HÀM HỖ TRỢ & CHART (V36 - SĂN NẾN NHẬT)
 # ==========================================
 def clean_table(df):
     if df.empty: return pd.DataFrame()
@@ -357,6 +324,45 @@ def safe_fmt(val):
     try: return f"{int(val):,}"
     except: return "N/A"
 
+def identify_candlestick_patterns(df):
+    # Logic nhận diện mẫu hình nến đơn giản, nhẹ, không dùng thư viện nặng
+    patterns = []
+    if len(df) < 3: return patterns
+    
+    # Duyệt qua 20 nến cuối cùng để đỡ rối
+    subset = df.iloc[-20:].copy()
+    
+    for i in range(1, len(subset)):
+        curr = subset.iloc[i]
+        prev = subset.iloc[i-1]
+        
+        # 1. Bullish Engulfing (Nhấn chìm tăng)
+        # Nến trước đỏ, nến sau xanh, thân sau bao trùm thân trước
+        if (prev['Close'] < prev['Open']) and (curr['Close'] > curr['Open']) and \
+           (curr['Close'] > prev['Open']) and (curr['Open'] < prev['Close']):
+            patterns.append({'Date': curr.name, 'Label': '▲ Engulf', 'Color': '#00ff00', 'Y': curr['Low']})
+            
+        # 2. Bearish Engulfing (Nhấn chìm giảm)
+        # Nến trước xanh, nến sau đỏ, thân sau bao trùm thân trước
+        elif (prev['Close'] > prev['Open']) and (curr['Close'] < curr['Open']) and \
+             (curr['Close'] < prev['Open']) and (curr['Open'] > prev['Close']):
+            patterns.append({'Date': curr.name, 'Label': '▼ Engulf', 'Color': '#ff0000', 'Y': curr['High']})
+            
+        # 3. Hammer (Búa - Đảo chiều tăng ở đáy)
+        # Thân nhỏ, bóng dưới dài gấp 2 thân, bóng trên nhỏ
+        body = abs(curr['Close'] - curr['Open'])
+        lower_shadow = min(curr['Close'], curr['Open']) - curr['Low']
+        upper_shadow = curr['High'] - max(curr['Close'], curr['Open'])
+        
+        if (lower_shadow > 2 * body) and (upper_shadow < body) and (curr['Close'] < df['Close'].rolling(20).mean().iloc[-1]): # Đang ở vùng thấp
+            patterns.append({'Date': curr.name, 'Label': '🔨 Hammer', 'Color': '#00ff00', 'Y': curr['Low']})
+
+        # 4. Shooting Star (Sao đổi ngôi - Đảo chiều giảm ở đỉnh)
+        if (upper_shadow > 2 * body) and (lower_shadow < body) and (curr['Close'] > df['Close'].rolling(20).mean().iloc[-1]): # Đang ở vùng cao
+            patterns.append({'Date': curr.name, 'Label': '☄️ Star', 'Color': '#ff0000', 'Y': curr['High']})
+            
+    return patterns
+
 def render_pro_chart(df, symbol):
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.03)
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
@@ -364,10 +370,10 @@ def render_pro_chart(df, symbol):
     # MA20
     if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
     
-    # ICHIMOKU (V35 MỚI)
-    if 'ITS_9' in df.columns and 'IKS_26' in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df['ITS_9'], line=dict(color='#22d3ee', width=1.5), name='Tenkan (Xanh)'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df['IKS_26'], line=dict(color='#ef4444', width=1.5), name='Kijun (Đỏ)'), row=1, col=1)
+    # ICHIMOKU (V35)
+    if 'ITS_9' in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df['ITS_9'], line=dict(color='#22d3ee', width=1.5), name='Tenkan'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df['IKS_26'], line=dict(color='#ef4444', width=1.5), name='Kijun'), row=1, col=1)
     
     # FIBONACCI (V34)
     max_h = df['High'].max(); min_l = df['Low'].min(); diff = max_h - min_l
@@ -377,7 +383,16 @@ def render_pro_chart(df, symbol):
         for i, lvl in enumerate(levels):
             price_lvl = max_h - (diff * lvl)
             fig.add_shape(type="line", x0=df.index[0], x1=df.index[-1], y0=price_lvl, y1=price_lvl, line=dict(color=colors_fib[i], width=1, dash="dot"), row=1, col=1)
-            fig.add_annotation(x=df.index[-1], y=price_lvl, text=f"Fibo {lvl}: {int(price_lvl):,}", showarrow=False, xanchor="left", font=dict(color=colors_fib[i], size=10), row=1, col=1)
+    
+    # --- VẼ NẾN NHẬT (V36 NEW) ---
+    patterns = identify_candlestick_patterns(df)
+    for p in patterns:
+        fig.add_annotation(
+            x=p['Date'], y=p['Y'], text=p['Label'],
+            showarrow=True, arrowhead=1, arrowcolor=p['Color'],
+            font=dict(color=p['Color'], size=11, weight="bold"),
+            row=1, col=1
+        )
 
     colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df.iterrows()]
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
@@ -420,11 +435,11 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
     ### 📜 BỘ QUY TẮC VÀNG
     #### ✅ MUA KHI:
     * **Điểm 8-10 (MUA MẠNH):** Vol nổ + SuperTrend Tăng + Breakout.
-    * **Ichimoku:** Tenkan (Xanh) cắt lên Kijun (Đỏ).
+    * **Săn Nến Nhật:** Xuất hiện **Hammer** hoặc **Engulfing Tăng (▲)**.
     * **ĐK Cần:** Sức khỏe Doanh nghiệp phải là **Xanh (Kim Cương)** hoặc **Lam (Vững Mạnh)**.
     #### 🛑 BÁN KHI:
     * Giá thủng mức **"🛑 Cắt Lỗ"** hiển thị trên màn hình.
-    * SuperTrend báo GIẢM (Đỏ).
+    * Xuất hiện **Shooting Star** hoặc **Engulfing Giảm (▼)**.
     """)
 
 elif mode == "🔮 Phân Tích Chuyên Sâu":
@@ -478,7 +493,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Ichimoku", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
+                t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Săn Nến", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
                 with t1: render_pro_chart(df_chart, symbol)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -526,7 +541,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V35")
+    st.title("📊 Máy Quét Siêu Hạng V36")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -569,5 +584,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V35 Ultimate - Ichimoku Cloud</div>', unsafe_allow_html=True)
-
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36 Ultimate - Candlestick Hunter</div>', unsafe_allow_html=True)
