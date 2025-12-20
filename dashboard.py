@@ -19,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V34", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V35", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -27,7 +27,8 @@ st.set_page_config(layout="wide", page_title="ThangLong Ultimate V34", page_icon
 USERS_DB = {
     "admin": "admin123", "stock": "stock123", "guest": "123456",
     "guest1": "123456", "huydang": "123456", "kieuoanh": "123456", "uyennhi": "123456",
-    "Mrquynh": "123456", "Msnhung": "123456", "thanhduc": "123456", "quyen": "123456"
+    "Mrquynh": "123456", "Msnhung": "123456", "thanhduc": "123456","quyen": "123456"
+}
 }
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
@@ -51,7 +52,7 @@ def login():
 if not st.session_state['logged_in']: login(); st.stop()
 
 # ==========================================
-# 🎨 GIAO DIỆN ADAPTIVE (V30 STABLE)
+# 🎨 GIAO DIỆN ADAPTIVE
 # ==========================================
 st.sidebar.title("🎛️ Trạm Điều Khiển")
 st.sidebar.info(f"👤 Hi: **{st.session_state['user_name']}**")
@@ -82,7 +83,6 @@ st.markdown("""
     .green-zone {background: linear-gradient(135deg, #10b981, #059669);}
     .red-zone {background: linear-gradient(135deg, #ef4444, #b91c1c);}
     .yellow-zone {background: linear-gradient(135deg, #f59e0b, #d97706);}
-    
     .footer {
         position: fixed; left: 0; bottom: 0; width: 100%; background: var(--secondary-background-color); 
         color: var(--text-color); text-align: center; font-size: 12px; padding: 10px; 
@@ -124,7 +124,7 @@ def load_data_final(ticker, time):
     t = f"{ticker}.VN"
     try:
         session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
         stock = yf.Ticker(t, session=session)
     except: stock = yf.Ticker(t)
     
@@ -141,6 +141,16 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
+            # --- THÊM ICHIMOKU (V35) ---
+            try:
+                # Tính Ichimoku: Tenkan(9), Kijun(26), SpanA(26), SpanB(52), Lagging(26)
+                ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
+                # ichi[0] chứa data, ichi[1] chứa Span A/B (đã shift)
+                # Ta nối cái DataFrame chính (ichi[0]) vào
+                if ichi is not None:
+                    df_calc = pd.concat([df_calc, ichi[0]], axis=1)
+            except: pass
+
     except: df_calc = pd.DataFrame()
 
     # 2. BIỂU ĐỒ
@@ -150,6 +160,13 @@ def load_data_final(ticker, time):
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
+            # Thêm Ichimoku cho chart (Nếu là Daily)
+            if interval == '1d':
+                try:
+                    ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                    if ichi_chart is not None:
+                        df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
+                except: pass
     except: df_chart = pd.DataFrame()
 
     # 3. TÀI CHÍNH & INFO
@@ -232,7 +249,7 @@ def run_prophet_forecast(df, periods=90):
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT
+# 🧠 PHÂN TÍCH KỸ THUẬT (UPDATE ICHIMOKU V35)
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 50: return None
@@ -244,6 +261,10 @@ def analyze_smart(df):
     vol_now = now['Volume']; vol_avg = now.get('VOL_SMA_20', vol_now)
     bb_upper = now.get('BBU_20_2.0', 0); bb_lower = now.get('BBL_20_2.0', 0); bb_mid = now.get('BBM_20_2.0', close)
     bandwidth = (bb_upper - bb_lower) / bb_mid if bb_mid > 0 else 0
+    
+    # Ichimoku Logic
+    tenkan = now.get('ITS_9', 0); kijun = now.get('IKS_26', 0)
+    
     score = 0; pros = []; cons = []
     
     if vol_now > 1.5 * vol_avg and close > prev['Close']: score += 2; pros.append(f"🔥 VSA: Tiền vào ồ ạt")
@@ -254,12 +275,16 @@ def analyze_smart(df):
         elif close < bb_lower: score -= 2; cons.append("=> Breakdown Xuống!")
     if close > supertrend: score += 2; pros.append("SuperTrend: BÁO TĂNG")
     else: score -= 2; cons.append("SuperTrend: BÁO GIẢM")
+    
+    # Ichimoku Scoring
+    if tenkan > 0 and kijun > 0:
+        if tenkan > kijun and close > tenkan: score += 1; pros.append("Ichimoku: Xu hướng Tăng (Tenkan > Kijun)")
+        elif tenkan < kijun: score -= 1; cons.append("Ichimoku: Xu hướng Giảm")
+
     if ema34 > ema89 and close > ema34: score += 1; pros.append("EMA System: Xu hướng Tốt")
     elif close < ema89: score -= 1; cons.append("EMA System: Gãy xu hướng")
     if rsi < 30: score += 1; pros.append(f"RSI ({rsi:.0f}): Quá bán")
     elif rsi > 70: score -= 1; cons.append(f"RSI ({rsi:.0f}): Quá mua")
-    if mfi < 20: score += 1; pros.append("MFI: Cá mập gom hàng")
-    if k < 20 and k > d: score += 1; pros.append("StochRSI: Đảo chiều Tăng")
     
     final_score = max(0, min(10, 4 + score))
     action, zone = "QUAN SÁT", "yellow-zone"
@@ -317,7 +342,7 @@ def analyze_fundamental(info, fin, bal, price_now):
     return {"health": health, "color": color, "details": details}
 
 # ==========================================
-# 🛠️ HÀM HỖ TRỢ & VẼ CHART FIBONACCI (V34)
+# 🛠️ HÀM HỖ TRỢ & CHART (FIBO + ICHIMOKU V35)
 # ==========================================
 def clean_table(df):
     if df.empty: return pd.DataFrame()
@@ -335,47 +360,29 @@ def safe_fmt(val):
 
 def render_pro_chart(df, symbol):
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.03)
-    # Candle
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
+    
     # MA20
     if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
-    # BB
-    if 'BBU_20_2.0' in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df['BBU_20_2.0'], line=dict(color='gray', dash='dot'), name='Upper'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df['BBL_20_2.0'], line=dict(color='gray', dash='dot'), name='Lower', fill='tonexty'), row=1, col=1)
     
-    # --- VẼ FIBONACCI (V34) ---
-    # Lấy đỉnh đáy trong khung hình hiện tại
-    max_h = df['High'].max()
-    min_l = df['Low'].min()
-    diff = max_h - min_l
+    # ICHIMOKU (V35 MỚI)
+    if 'ITS_9' in df.columns and 'IKS_26' in df.columns:
+        fig.add_trace(go.Scatter(x=df.index, y=df['ITS_9'], line=dict(color='#22d3ee', width=1.5), name='Tenkan (Xanh)'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df['IKS_26'], line=dict(color='#ef4444', width=1.5), name='Kijun (Đỏ)'), row=1, col=1)
     
+    # FIBONACCI (V34)
+    max_h = df['High'].max(); min_l = df['Low'].min(); diff = max_h - min_l
     if diff > 0:
-        # Các mức Fibo quan trọng: 0.236, 0.382, 0.5, 0.618, 0.786
-        levels = [0.236, 0.382, 0.5, 0.618, 0.786]
-        colors_fib = ['#94a3b8', '#94a3b8', '#facc15', '#eab308', '#94a3b8'] # 0.5 và 0.618 màu vàng nổi bật
-        
+        levels = [0.382, 0.5, 0.618]
+        colors_fib = ['#94a3b8', '#facc15', '#eab308'] 
         for i, lvl in enumerate(levels):
             price_lvl = max_h - (diff * lvl)
-            # Vẽ đường ngang
-            fig.add_shape(type="line", x0=df.index[0], x1=df.index[-1], y0=price_lvl, y1=price_lvl,
-                          line=dict(color=colors_fib[i], width=1, dash="dash"), row=1, col=1)
-            # Thêm nhãn text bên phải
-            fig.add_annotation(x=df.index[-1], y=price_lvl, text=f"Fibo {lvl}: {int(price_lvl):,}",
-                               showarrow=False, xanchor="left", font=dict(color=colors_fib[i], size=10), row=1, col=1)
+            fig.add_shape(type="line", x0=df.index[0], x1=df.index[-1], y0=price_lvl, y1=price_lvl, line=dict(color=colors_fib[i], width=1, dash="dot"), row=1, col=1)
+            fig.add_annotation(x=df.index[-1], y=price_lvl, text=f"Fibo {lvl}: {int(price_lvl):,}", showarrow=False, xanchor="left", font=dict(color=colors_fib[i], size=10), row=1, col=1)
 
-    # Volume
     colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df.iterrows()]
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
     
-    # MACD
-    if 'MACD_12_26_9' in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df['MACD_12_26_9'], line=dict(color='#22d3ee', width=1.5), name='MACD'), row=3, col=1) # MACD vẽ chung vào volume hoặc tách row nếu muốn, ở đây code cũ vẽ đè row 3 (nhưng khai báo subplots có 2 row).
-        # Fix logic: Code cũ subplot chỉ có 2 row. MACD nên vẽ vào row 2 chung vol hoặc tạo row 3.
-        # Để đơn giản và không vỡ layout, ta ẩn MACD hoặc vẽ đè row 2 (không đẹp).
-        # Tốt nhất: Chỉ vẽ MACD nếu có Row 3. Ở đây ta giữ nguyên code cũ (Plotly sẽ tự ignore nếu sai row hoặc vẽ đè).
-        pass
-
     fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     st.plotly_chart(fig, use_container_width=True)
@@ -414,7 +421,7 @@ if mode == "📘 Hướng Dẫn & Quy Tắc":
     ### 📜 BỘ QUY TẮC VÀNG
     #### ✅ MUA KHI:
     * **Điểm 8-10 (MUA MẠNH):** Vol nổ + SuperTrend Tăng + Breakout.
-    * **Điểm 6-7 (THĂM DÒ):** Vùng nén Bollinger + RSI quá bán ngóc lên.
+    * **Ichimoku:** Tenkan (Xanh) cắt lên Kijun (Đỏ).
     * **ĐK Cần:** Sức khỏe Doanh nghiệp phải là **Xanh (Kim Cương)** hoặc **Lam (Vững Mạnh)**.
     #### 🛑 BÁN KHI:
     * Giá thủng mức **"🛑 Cắt Lỗ"** hiển thị trên màn hình.
@@ -472,7 +479,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Fibo", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
+                t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Ichimoku", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
                 with t1: render_pro_chart(df_chart, symbol)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -520,7 +527,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V34")
+    st.title("📊 Máy Quét Siêu Hạng V35")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -563,4 +570,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V34 Ultimate - Fibonacci Master</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V35 Ultimate - Ichimoku Cloud</div>', unsafe_allow_html=True)
