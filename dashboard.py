@@ -2,13 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
 from datetime import datetime, timedelta
 import requests
-import time
 
 # --- THƯ VIỆN AI (PROPHET) ---
 try:
@@ -19,7 +17,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V40", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V41", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -106,7 +104,7 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (DNSE + SSI - V40)
+# 🧠 XỬ LÝ DỮ LIỆU (V41: COPHIEU68 + DNSE)
 # ==========================================
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
@@ -116,56 +114,46 @@ def load_news_google(symbol):
         return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
     except: return []
 
-# 1. LẤY GIÁ TỪ DNSE (ENTRADE) - Ít bị chặn nhất hiện nay
+# 1. LẤY GIÁ TỪ DNSE (ENTRADE) - Ít bị chặn nhất
 def get_data_dnse(ticker):
     try:
         end = int(datetime.now().timestamp())
         start = int((datetime.now() - timedelta(days=730)).timestamp()) # 2 năm
         url = f"https://services.entrade.com.vn/chart-api/v2/ohlcs/stock?symbol={ticker}&from={start}&to={end}&resolution=1D"
-        
         headers = {'User-Agent': 'Mozilla/5.0'}
         resp = requests.get(url, headers=headers, timeout=5).json()
-        
         if resp and 't' in resp and len(resp['t']) > 0:
-            df = pd.DataFrame({
-                'Date': pd.to_datetime(resp['t'], unit='s'),
-                'Open': resp['o'],
-                'High': resp['h'],
-                'Low': resp['l'],
-                'Close': resp['c'],
-                'Volume': resp['v']
-            })
+            df = pd.DataFrame({'Date': pd.to_datetime(resp['t'], unit='s'), 'Open': resp['o'], 'High': resp['h'], 'Low': resp['l'], 'Close': resp['c'], 'Volume': resp['v']})
             df.set_index('Date', inplace=True)
             return df.sort_index()
-    except Exception as e:
-        # st.error(f"Lỗi DNSE: {e}")
-        pass
+    except: pass
     return pd.DataFrame()
 
-# 2. LẤY CƠ BẢN TỪ SSI (iBOARD) - Rất chi tiết
-def get_fundamental_ssi(ticker):
-    data = {}
+# 2. LẤY CƠ BẢN TỪ COPHIEU68 (SCRAPING) - Nguồn cổ điển, ít chặn
+def get_fundamental_cophieu68(ticker):
+    data = {'priceToEarning': None, 'priceToBook': None, 'roe': None, 'marketCap': None, 'source': 'Cophieu68'}
     try:
-        url = f"https://iboard.ssi.com.vn/api/apiv2/securities/details?symbol={ticker}"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36'}
-        resp = requests.get(url, headers=headers, timeout=5).json()
+        # Trang snapshot của Cophieu68 chứa bảng thông tin cơ bản
+        url = f"https://www.cophieu68.vn/snapshot.php?id={ticker}"
+        # Sử dụng pandas read_html để "đọc trộm" bảng
+        dfs = pd.read_html(url)
         
-        if resp and 'data' in resp and resp['data']:
-            d = resp['data']
-            data['shortName'] = d.get('repeating_company_name_vi', ticker)
-            data['exchange'] = d.get('exchange', 'VN')
-            data['priceToEarning'] = d.get('pe', 0)
-            data['priceToBook'] = d.get('pb', 0)
-            data['roe'] = d.get('roe', 0)
-            data['marketCap'] = d.get('market_cap', 0)
-            data['source'] = 'SSI'
-            # SSI không trả về Nợ/VCSH trực tiếp ở API này, ta tạm để None để không báo sai
-            data['debtOnEquity'] = None 
-            return data
-    except: pass
+        # Thường bảng chỉ số nằm ở vị trí đầu hoặc thứ 2
+        for df in dfs:
+            if df.shape[1] >= 2:
+                # Chuyển thành dict để dễ tra cứu
+                info_dict = dict(zip(df[0], df[1]))
+                
+                # Cố gắng lấy các chỉ số (Tên trường có thể thay đổi tùy web)
+                if 'P/E' in info_dict: data['priceToEarning'] = float(str(info_dict['P/E']).replace(',', ''))
+                if 'P/B' in info_dict: data['priceToBook'] = float(str(info_dict['P/B']).replace(',', ''))
+                if 'ROE' in info_dict: data['roe'] = float(str(info_dict['ROE']).replace('%', '').replace(',', ''))
+                if 'Vốn thị trường (tỷ)' in info_dict: data['marketCap'] = float(str(info_dict['Vốn thị trường (tỷ)']).replace(',', ''))
+                if 'EPS' in info_dict: data['eps'] = str(info_dict['EPS'])
+    except: 
+        data['source'] = 'Error'
     
-    # FALLBACK: Nếu SSI chặn, thử trả về data rỗng có đánh dấu
-    return {'source': 'NONE'}
+    return data
 
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time_period):
@@ -174,7 +162,6 @@ def load_data_final(ticker, time_period):
     df_chart = pd.DataFrame()
     
     if not df_calc.empty:
-        # Cắt data cho chart
         if time_period == "1d": df_chart = df_calc.tail(100) 
         elif time_period == "5d": df_chart = df_calc.tail(10) 
         elif time_period == "1mo": df_chart = df_calc.tail(22)
@@ -206,14 +193,13 @@ def load_data_final(ticker, time_period):
                 if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
             except: pass
 
-    # 2. Load Fundamental (SSI)
-    fund_data = get_fundamental_ssi(ticker)
-    
+    # 2. Load Fundamental (Cophieu68)
+    fund_data = get_fundamental_cophieu68(ticker)
     news = load_news_google(ticker)
     return df_calc, df_chart, fund_data, news
 
 # ==========================================
-# 🧠 MONTE CARLO SIMULATION
+# 🧠 MONTE CARLO & AI
 # ==========================================
 def run_monte_carlo(df, days=30, simulations=1000):
     if df.empty: return None, None, None
@@ -239,9 +225,6 @@ def run_monte_carlo(df, days=30, simulations=1000):
     fig_hist.update_layout(template="plotly_dark", showlegend=False, margin=dict(l=0,r=0,t=50,b=0))
     return fig, fig_hist, stats
 
-# ==========================================
-# 🧠 AI PREDICTION
-# ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
     try:
@@ -257,7 +240,7 @@ def run_prophet_forecast(df, periods=90):
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
 
 # ==========================================
-# 🧠 PHÂN TÍCH KỸ THUẬT
+# 🧠 PHÂN TÍCH (LOGIC SỬA LỖI UI)
 # ==========================================
 def analyze_smart(df):
     if df.empty or len(df) < 50: return None
@@ -298,43 +281,40 @@ def analyze_smart(df):
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
 def analyze_fundamental(fund_data):
-    # V40: Xử lý thông minh khi thiếu dữ liệu
+    # V41 ANTI-UGLY LOGIC: Không có dữ liệu thì không đánh giá, không báo Yếu kém.
     score = 0; details = []
     
-    if not fund_data or fund_data.get('source') == 'NONE':
-        return {"health": "KHÔNG XÁC ĐỊNH", "color": "gray", "details": ["Server chặn kết nối dữ liệu cơ bản."]}
+    if not fund_data or fund_data.get('source') == 'Error':
+        # TRẢ VỀ TRẠNG THÁI NEUTRAL, KHÔNG PHẢI BAD
+        return {"health": "ĐANG CẬP NHẬT", "color": "#64748b", "details": ["Không lấy được dữ liệu BCTC từ nguồn."]}
 
-    # Lấy dữ liệu an toàn
     pe = fund_data.get('priceToEarning')
     pb = fund_data.get('priceToBook')
     roe = fund_data.get('roe')
+    market_cap = fund_data.get('marketCap')
     
-    # Logic đánh giá: Chỉ đánh giá cái gì CÓ, không phạt cái KHÔNG CÓ
-    valid_criteria = 0
+    # Nếu tất cả là None (Web scraping thất bại)
+    if pe is None and roe is None:
+        return {"health": "CHƯA XÁC ĐỊNH", "color": "#64748b", "details": ["Dữ liệu Cophieu68 chưa sẵn sàng."]}
+
+    if pe is not None:
+        if 0 < pe < 15: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
+        else: details.append(f"P/E: {pe:.1f}x")
     
-    if pe is not None and pe > 0:
-        if pe < 15: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
-        else: details.append(f"P/E Cao ({pe:.1f}x)")
-        valid_criteria += 1
-        
-    if pb is not None and pb > 0:
-        if pb < 1.5: score += 1; details.append(f"P/B Rẻ ({pb:.1f}x)")
-        valid_criteria += 1
-        
+    if pb is not None:
+        if 0 < pb < 1.5: score += 1; details.append(f"P/B Rẻ ({pb:.1f}x)")
+    
     if roe is not None:
         if roe > 15: score += 2; details.append(f"ROE Xuất sắc ({roe:.1f}%)")
         elif roe > 10: score += 1; details.append(f"ROE Ổn định ({roe:.1f}%)")
-        elif roe > 0: details.append(f"ROE Thấp ({roe:.1f}%)")
-        valid_criteria += 1
+        else: details.append(f"ROE: {roe:.1f}%")
+        
+    if market_cap: details.append(f"Vốn hóa: {market_cap:,.0f} tỷ")
     
     details.append(f"Nguồn: {fund_data.get('source')}")
 
-    # Xếp hạng dựa trên tiêu chí có sẵn
-    if valid_criteria == 0:
-        return {"health": "CHƯA ĐỦ DỮ LIỆU", "color": "gray", "details": ["Cần kiểm tra nguồn khác"]}
-    
-    # Chuẩn hóa điểm số
     health, color = ("TRUNG BÌNH", "#f59e0b")
+    # Giảm ngưỡng điểm vì thiếu dữ liệu Nợ/VCSH
     if score >= 4: health, color = ("KIM CƯƠNG 💎", "#10b981") 
     elif score >= 2: health, color = ("VỮNG MẠNH 💪", "#3b82f6")
     elif score < 2: health, color = ("CẦN CẨN TRỌNG ⚠️", "#ef4444")
@@ -424,14 +404,13 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
     if symbol:
-        # Load Data V40 (DNSE + SSI)
+        # Load Data V41
         df_calc, df_chart, fund_data, news = load_data_final(symbol, period)
         
         if not df_chart.empty and not df_calc.empty:
             try:
                 price_now = df_calc.iloc[-1]['Close']
-                long_name = fund_data.get('shortName', symbol)
-                st.title(f"💎 {long_name} ({symbol})")
+                st.title(f"💎 {symbol}")
                 
                 strat = analyze_smart(df_calc)   
                 fund = analyze_fundamental(fund_data) 
@@ -462,10 +441,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         </div>
                         """, unsafe_allow_html=True)
                         with st.expander("🔍 Chi tiết Cơ Bản", expanded=True):
-                            for d in fund['details']: 
-                                if "cao" in d and "Nợ" in d: st.warning(f"⚠️ {d}")
-                                elif "Thấp" in d and "ROE" in d: st.warning(f"⚠️ {d}")
-                                else: st.write(f"✅ {d}")
+                            for d in fund['details']: st.write(f"ℹ️ {d}")
 
                 t1, t2, t3, t4, t5 = st.tabs(["📊 Biểu Đồ & Săn Nến", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "🏢 Hồ Sơ"])
                 with t1: render_pro_chart(df_chart, symbol)
@@ -491,19 +467,8 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 with t4:
                     for item in news: st.markdown(f'<div class="news-item"><a href="{item["link"]}" target="_blank" class="news-title">{item["title"]}</a><div class="news-meta">🕒 {item["published"][:16]}</div></div>', unsafe_allow_html=True)
                 with t5:
-                    c1, c2 = st.columns([1, 1])
-                    with c1:
-                        st.subheader("Thông Tin")
-                        st.info(f"Nguồn Dữ Liệu: {fund_data.get('source', 'Unknown')}")
-                        st.write(f"Tên: {fund_data.get('shortName', symbol)}")
-                    with c2:
-                        st.subheader("Chỉ Số")
-                        pe_val = fund_data.get('priceToEarning')
-                        st.write(f"P/E: {pe_val:.1f}" if pe_val else "P/E: N/A")
-                        pb_val = fund_data.get('priceToBook')
-                        st.write(f"P/B: {pb_val:.1f}" if pb_val else "P/B: N/A")
-                        roe_val = fund_data.get('roe')
-                        st.write(f"ROE: {roe_val:.1f}%" if roe_val else "ROE: N/A")
+                    st.write(f"**Nguồn dữ liệu:** {fund_data.get('source', 'N/A')}")
+                    if fund_data.get('eps'): st.write(f"EPS: {fund_data['eps']}")
 
             except Exception as e:
                 st.error(f"⚠️ Có lỗi khi xử lý dữ liệu mã {symbol}. Chi tiết: {e}")
@@ -511,7 +476,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Hệ thống đã thử các nguồn dự phòng nhưng đều thất bại do chặn IP. Vui lòng thử lại sau.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V40")
+    st.title("📊 Máy Quét Siêu Hạng V41")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -554,4 +519,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V40 Ultimate - DNSE/SSI Alliance</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V41 Ultimate - Cophieu68 Rescue</div>', unsafe_allow_html=True)
