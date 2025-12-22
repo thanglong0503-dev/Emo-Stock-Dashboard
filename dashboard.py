@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -20,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V38", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V39", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -107,7 +106,7 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (HYBRID RESCUE V38)
+# 🧠 XỬ LÝ DỮ LIỆU (VNDIRECT CONNECTION V39)
 # ==========================================
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
@@ -117,119 +116,95 @@ def load_news_google(symbol):
         return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
     except: return []
 
-# 1. LẤY GIÁ & CHART (ƯU TIÊN TCBS -> FALLBACK YAHOO)
-def get_data_hybrid(ticker, time_period):
-    df_calc = pd.DataFrame()
-    df_chart = pd.DataFrame()
-    source = "NONE"
-
-    # A. THỬ TCBS (Headers xịn để lách block)
+# 1. LẤY LỊCH SỬ GIÁ TỪ VNDIRECT (ỔN ĐỊNH CAO)
+def get_history_vndirect(ticker):
     try:
-        end = int(datetime.now().timestamp())
-        start = int((datetime.now() - timedelta(days=730)).timestamp())
-        url = f"https://apipubaws.tcbs.com.vn/stock-insight/v1/stock/bars-long-term?ticker={ticker}&type=stock&resolution=D&from={start}&to={end}"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://tcinvest.tcbs.com.vn/',
-            'Origin': 'https://tcinvest.tcbs.com.vn'
-        }
-        resp = requests.get(url, headers=headers, timeout=3).json()
-        df = pd.DataFrame(resp['data'])
-        if not df.empty:
-            df = df.rename(columns={'tradingDate': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'})
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
+        url = f"https://finfo-api.vndirect.com.vn/v4/stock_prices?sort=date&q=code:{ticker}~date:gte:{start_date}&size=2000"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        resp = requests.get(url, headers=headers, timeout=5).json()
+        
+        if 'data' in resp and len(resp['data']) > 0:
+            df = pd.DataFrame(resp['data'])
+            # Map cột
+            df = df[['date', 'adOpen', 'adHigh', 'adLow', 'adClose', 'nmVolume']]
+            df.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
             df['Date'] = pd.to_datetime(df['Date'])
             df.set_index('Date', inplace=True)
-            df_calc = df.sort_index()
-            source = "TCBS"
+            return df.sort_index()
     except: pass
+    return pd.DataFrame()
 
-    # B. NẾU TCBS THẤT BẠI -> DÙNG YAHOO (Cứu cánh)
-    if df_calc.empty:
-        try:
-            t = f"{ticker}.VN"
-            stock = yf.Ticker(t)
-            df_yahoo = stock.history(period="2y")
-            if not df_yahoo.empty:
-                df_calc = df_yahoo
-                source = "YAHOO"
-        except: pass
+# 2. LẤY CHỈ SỐ CƠ BẢN TỪ VNDIRECT (CỨU CÁNH CHO ROE, PE)
+def get_ratios_vndirect(ticker):
+    data = {}
+    try:
+        # Lấy thông tin cơ bản
+        url_profile = f"https://finfo-api.vndirect.com.vn/v4/stocks?q=code:{ticker}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        resp_prof = requests.get(url_profile, headers=headers, timeout=3).json()
+        if 'data' in resp_prof and len(resp_prof['data']) > 0:
+            item = resp_prof['data'][0]
+            data['shortName'] = item.get('companyName')
+            data['exchange'] = item.get('floor')
+        
+        # Lấy chỉ số tài chính (PE, PB, ROE)
+        url_ratios = f"https://finfo-api.vndirect.com.vn/v4/ratios?q=code:{ticker}&sort=reportDate:desc&size=1"
+        resp_ratio = requests.get(url_ratios, headers=headers, timeout=3).json()
+        if 'data' in resp_ratio and len(resp_ratio['data']) > 0:
+            ratio = resp_ratio['data'][0]
+            data['priceToEarning'] = ratio.get('pe')
+            data['priceToBook'] = ratio.get('pb')
+            data['roe'] = ratio.get('roe')
+            data['roa'] = ratio.get('roa')
+            data['source'] = 'VNDIRECT'
+        
+        return data
+    except: return {}
 
-    # Xử lý dữ liệu Chart từ df_calc đã lấy được
+@st.cache_data(ttl=300)
+def load_data_final(ticker, time_period):
+    # 1. Load Chart (VNDIRECT)
+    df_calc = get_history_vndirect(ticker)
+    df_chart = pd.DataFrame()
+    
     if not df_calc.empty:
+        # Cắt data cho chart
         if time_period == "1d": df_chart = df_calc.tail(100) 
-        elif time_period == "5d": df_chart = df_calc.tail(5)
+        elif time_period == "5d": df_chart = df_calc.tail(10) # VNDirect daily only
         elif time_period == "1mo": df_chart = df_calc.tail(22)
         elif time_period == "6mo": df_chart = df_calc.tail(130)
         elif time_period == "1y": df_chart = df_calc.tail(260)
         else: df_chart = df_calc
 
-    return df_calc, df_chart, source
-
-# 2. LẤY CƠ BẢN (ƯU TIÊN TCBS -> FALLBACK YAHOO)
-def get_fundamental_hybrid(ticker):
-    data = {}
-    
-    # A. THỬ TCBS
-    try:
-        url = f"https://apipubaws.tcbs.com.vn/tcanalysis/v1/ticker/{ticker}/overview"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://tcinvest.tcbs.com.vn/'
-        }
-        resp = requests.get(url, headers=headers, timeout=2).json()
-        if resp:
-            data = resp
-            data['source'] = 'TCBS'
-            return data
-    except: pass
-    
-    # B. NẾU TCBS HỎNG -> DÙNG YAHOO INFO
-    try:
-        stock = yf.Ticker(f"{ticker}.VN")
-        info = stock.info
-        if info:
-            data['priceToEarning'] = info.get('trailingPE', 0)
-            data['priceToBook'] = info.get('priceToBook', 0)
-            data['roe'] = info.get('returnOnEquity', 0)
-            data['debtOnEquity'] = info.get('debtToEquity', 0) / 100 if info.get('debtToEquity') else 0
-            data['marketCap'] = info.get('marketCap', 0)
-            data['shortName'] = info.get('longName', ticker)
-            data['source'] = 'YAHOO'
-    except: pass
-    
-    return data
-
-@st.cache_data(ttl=300)
-def load_data_final(ticker, time_period):
-    # 1. Load Chart
-    df_calc, df_chart, source = get_data_hybrid(ticker, time_period)
-    
-    # Tính toán chỉ báo
-    if not df_calc.empty and len(df_calc) > 50:
-        try:
-            sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
-            df_calc = df_calc.join(sti) 
-            df_calc.ta.mfi(length=14, append=True); df_calc.ta.stochrsi(length=14, append=True)
-            df_calc.ta.ema(length=34, append=True); df_calc.ta.ema(length=89, append=True)
-            df_calc.ta.adx(length=14, append=True); df_calc.ta.atr(length=14, append=True)
-            df_calc.ta.rsi(length=14, append=True); df_calc.ta.cci(length=20, append=True)
-            df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
-            df_calc.ta.bbands(length=20, std=2, append=True)
-            df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
-            ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
-            if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
-        except: pass
+        # Tính toán kỹ thuật
+        if len(df_calc) > 50:
+            try:
+                sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
+                df_calc = df_calc.join(sti) 
+                df_calc.ta.mfi(length=14, append=True); df_calc.ta.stochrsi(length=14, append=True)
+                df_calc.ta.ema(length=34, append=True); df_calc.ta.ema(length=89, append=True)
+                df_calc.ta.adx(length=14, append=True); df_calc.ta.atr(length=14, append=True)
+                df_calc.ta.rsi(length=14, append=True); df_calc.ta.cci(length=20, append=True)
+                df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
+                df_calc.ta.bbands(length=20, std=2, append=True)
+                df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
+                # Ichimoku
+                ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
+                if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
+            except: pass
             
-    if not df_chart.empty:
-        try:
-            df_chart.ta.sma(length=20, append=True)
-            df_chart.ta.bbands(length=20, std=2, append=True)
-            ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-            if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
-        except: pass
+        if not df_chart.empty:
+            try:
+                df_chart.ta.sma(length=20, append=True)
+                df_chart.ta.bbands(length=20, std=2, append=True)
+                ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
+            except: pass
 
-    # 2. Load Fundamental
-    fund_data = get_fundamental_hybrid(ticker)
+    # 2. Load Fundamental (VNDIRECT)
+    fund_data = get_ratios_vndirect(ticker)
     
     news = load_news_google(ticker)
     return df_calc, df_chart, fund_data, news
@@ -321,7 +296,6 @@ def analyze_smart(df):
 
 def analyze_fundamental(fund_data):
     score = 0; details = []
-    pe = 0; pb = 0; roe = 0; debt_equity = 0
     
     if not fund_data:
         return {"health": "CHƯA RÕ", "color": "gray", "details": ["Đang cập nhật dữ liệu..."]}
@@ -329,27 +303,32 @@ def analyze_fundamental(fund_data):
     try:
         pe = fund_data.get('priceToEarning', 0)
         pb = fund_data.get('priceToBook', 0)
-        roe = fund_data.get('roe', 0) * 100 if fund_data.get('source') == 'TCBS' else fund_data.get('roe', 0) * 100
-        debt_equity = fund_data.get('debtOnEquity', 0) * 100 if fund_data.get('source') == 'TCBS' else fund_data.get('debtOnEquity', 0) * 100
+        roe = fund_data.get('roe', 0) 
+        roa = fund_data.get('roa', 0)
         
+        # Nếu ROE = 0 hoặc None, coi như thiếu dữ liệu để đánh giá chính xác
+        if roe is None or roe == 0:
+             return {"health": "THIẾU DỮ LIỆU", "color": "gray", "details": ["Chưa có dữ liệu BCTC mới nhất"]}
+
         if 0 < pe < 15: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
         elif pe >= 15: details.append(f"P/E Khá cao ({pe:.1f}x)")
+        
         if 0 < pb < 1.5: score += 1; details.append(f"P/B Rẻ ({pb:.1f}x)")
+        
         if roe > 15: score += 2; details.append(f"ROE Xuất sắc ({roe:.1f}%)")
         elif roe > 10: score += 1; details.append(f"ROE Ổn định ({roe:.1f}%)")
         else: details.append(f"ROE Thấp ({roe:.1f}%)")
-        if 0 <= debt_equity < 50: score += 2; details.append(f"Nợ vay thấp ({debt_equity:.0f}%)")
-        elif debt_equity < 100: score += 1; details.append(f"Nợ vay chấp nhận được ({debt_equity:.0f}%)")
-        else: details.append(f"Cảnh báo nợ cao ({debt_equity:.0f}%)")
         
-        details.append(f"Nguồn dữ liệu: {fund_data.get('source', 'N/A')}")
+        if roa > 5: score += 1; details.append(f"ROA Tốt ({roa:.1f}%)")
+        
+        details.append(f"Nguồn: {fund_data.get('source', 'N/A')}")
 
     except: return {"health": "LỖI", "color": "gray", "details": ["Lỗi xử lý"]}
 
     health, color = ("TRUNG BÌNH", "#f59e0b")
-    if score >= 6: health, color = ("KIM CƯƠNG 💎", "#10b981") 
+    if score >= 5: health, color = ("KIM CƯƠNG 💎", "#10b981") 
     elif score >= 3: health, color = ("VỮNG MẠNH 💪", "#3b82f6")
-    elif score < 3: health, color = ("YẾU KÉM ⚠️", "#ef4444")
+    elif score < 3: health, color = ("CẦN CẨN TRỌNG ⚠️", "#ef4444")
     return {"health": health, "color": color, "details": details}
 
 # ==========================================
@@ -435,7 +414,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
     period = st.selectbox("Khung thời gian", ["1d", "5d", "1mo", "6mo", "1y", "5y"], index=4)
     
     if symbol:
-        # Load Data V38 (Hybrid)
+        # Load Data V39 (VNDIRECT)
         df_calc, df_chart, fund_data, news = load_data_final(symbol, period)
         
         if not df_chart.empty and not df_calc.empty:
@@ -472,7 +451,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                             <div style="font-size: 36px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        with st.expander("🔍 Chi tiết Cơ Bản", expanded=True):
+                        with st.expander("🔍 Chi tiết Cơ Bản (Nguồn VNDIRECT)", expanded=True):
                             for d in fund['details']: 
                                 if "cao" in d and "Nợ" in d: st.warning(f"⚠️ {d}")
                                 elif "Thấp" in d and "ROE" in d: st.warning(f"⚠️ {d}")
@@ -507,20 +486,23 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         st.subheader("Thông Tin")
                         st.info(f"Nguồn Dữ Liệu: {fund_data.get('source', 'Unknown')}")
                         st.write(f"Tên: {fund_data.get('shortName', symbol)}")
+                        st.write(f"Sàn: {fund_data.get('exchange', 'N/A')}")
                     with c2:
                         st.subheader("Chỉ Số")
                         pe_val = fund_data.get('priceToEarning', 0)
                         st.write(f"P/E: {pe_val:.1f}" if pe_val else "P/E: N/A")
                         pb_val = fund_data.get('priceToBook', 0)
                         st.write(f"P/B: {pb_val:.1f}" if pb_val else "P/B: N/A")
+                        roe_val = fund_data.get('roe', 0)
+                        st.write(f"ROE: {roe_val:.1f}%" if roe_val else "ROE: N/A")
 
             except Exception as e:
                 st.error(f"⚠️ Có lỗi khi xử lý dữ liệu mã {symbol}. Chi tiết: {e}")
         else:
-            st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Hệ thống đã thử cả TCBS và Yahoo nhưng đều thất bại. Vui lòng thử lại sau.")
+            st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Vui lòng kiểm tra lại mã hoặc thử lại sau.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V38")
+    st.title("📊 Máy Quét Siêu Hạng V39")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -563,4 +545,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V38 Ultimate - Hybrid Rescue</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V39 Ultimate - Connection</div>', unsafe_allow_html=True)
