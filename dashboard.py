@@ -212,7 +212,7 @@ def run_monte_carlo(df, days=30, simulations=1000):
     return fig, fig_hist, stats
 
 # ==========================================
-# 🧠 AI PREDICTION (BẢN UỐN LƯỢN V36.2)
+# 🧠 AI PREDICTION (FIXED V36.3: SAFE MODE)
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
@@ -222,13 +222,13 @@ def run_prophet_forecast(df, periods=90):
         df_prophet.columns = ['ds', 'y']
         df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
         
-        # --- 🛠️ CHỈNH SỬA Ở ĐÂY: CẤU HÌNH CHO NÓ "CONG" ---
+        # --- 🛠️ FIX V36.3: CẤU HÌNH AN TOÀN ---
         m = Prophet(
-            daily_seasonality=False,      # TẮT sóng ngày (Nguyên nhân gây thẳng đuột)
-            weekly_seasonality=True,      # BẬT sóng tuần (Để bắt nhịp T+)
-            yearly_seasonality=True,      # BẬT sóng năm (Để bắt trend dài)
-            changepoint_prior_scale=0.1,  # Tăng độ nhạy (Càng cao càng uốn lượn)
-            seasonality_mode='multiplicative' # Chế độ nhân (Phù hợp chứng khoán)
+            daily_seasonality=False,      # Tắt sóng ngày
+            weekly_seasonality=True,      # Bật sóng tuần
+            yearly_seasonality=True,      # Bật sóng năm
+            changepoint_prior_scale=0.05, # Độ nhạy trung bình (vừa đủ mượt, không quá giật)
+            seasonality_mode='additive'   # <-- QUAN TRỌNG NHẤT: Chế độ 'Cộng' an toàn, tránh lỗi giá âm
         )
         
         m.fit(df_prophet)
@@ -239,12 +239,16 @@ def run_prophet_forecast(df, periods=90):
         
         # Vẽ biểu đồ
         fig = plot_plotly(m, forecast)
+        
+        # Tùy chỉnh màu sắc cho đẹp mắt
         fig.data[0].marker.color = '#22d3ee' # Màu nến thực tế (Xanh Neon)
         fig.data[1].line.color = '#f472b6'   # Màu đường dự báo (Hồng Phấn)
-        fig.data[2]['marker']['color'] = 'rgba(244, 114, 182, 0.2)' # Màu vùng mây (Hồng nhạt)
+        # Cố gắng chỉnh màu vùng mây (nếu plotly cho phép truy cập)
+        try: fig.data[2]['marker']['color'] = 'rgba(244, 114, 182, 0.2)' 
+        except: pass
 
         fig.update_layout(
-            title=dict(text="🔮 AI Prophet: Dự Báo Xu Hướng (Smart Curve)", font=dict(size=20)), 
+            title=dict(text="🔮 AI Prophet: Dự Báo Xu Hướng (Safe Mode)", font=dict(size=20)), 
             yaxis_title="Giá Dự Kiến", 
             template="plotly_dark", 
             height=600, 
@@ -629,4 +633,5 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
