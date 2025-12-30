@@ -109,32 +109,28 @@ if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); s
 
 
 # ==========================================
+# 🧠 XỬ LÝ DỮ LIỆU
+# ==========================================
+@st.cache_data(ttl=300)
+def load_news_google(symbol):
+    try:
+        rss_url = f"https://news.google.com/rss/search?q=cổ+phiếu+{symbol}&hl=vi&gl=VN&ceid=VN:vi"
+        feed = feedparser.parse(rss_url)
+        return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
+    except: return []
+
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
-    # --- ĐOẠN SỬA: TỰ ĐỘNG DÒ ĐUÔI SÀN (.VN hoặc .HN) ---
-    stock = None
-    df_calc = pd.DataFrame()
-    
-    # Danh sách thử: Ưu tiên HOSE (.VN), không được thì thử HNX/UPCOM (.HN)
-    try_list = [f"{ticker}.VN", f"{ticker}.HN"]
-    
-    for t in try_list:
-        try:
-            temp_stock = yf.Ticker(t)
-            temp_df = temp_stock.history(period="2y")
-            if not temp_df.empty:
-                stock = temp_stock
-                df_calc = temp_df
-                break # Tìm thấy thì dừng ngay, không thử tiếp
-        except: continue
-        
-    # Nếu thử cả 2 mà vẫn không có dữ liệu
-    if df_calc.empty:
-         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
-    # -------------------------------------------------------
-
-    # 1. KỸ THUẬT (Giữ nguyên logic cũ)
+    t = f"{ticker}.VN"
     try:
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+        stock = yf.Ticker(t, session=session)
+    except: stock = yf.Ticker(t)
+    
+    # 1. KỸ THUẬT
+    try:
+        df_calc = stock.history(period="2y")
         if len(df_calc) > 100:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
             df_calc = df_calc.join(sti) 
@@ -145,33 +141,35 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
+            # Ichimoku
             try:
                 ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
                 if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # 2. BIỂU ĐỒ
-    df_chart = pd.DataFrame()
+    # 2. BIỂU ĐỒ (Cần dữ liệu để vẽ nến)
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
+            # Ichimoku Chart
             if interval == '1d':
                 try:
-                    ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
+                    ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
                 except: pass
-    except: pass
+    except: df_chart = pd.DataFrame()
 
-    # 3. INFO & BCTC (Anti-Ugly)
+    # 3. INFO & BCTC (Sử dụng logic xử lý lỗi V36.1)
     try: info = stock.info
     except: info = {}
-    if info is None: info = {}
     
-    try:
+    # Fallback cơ bản để không lỗi code
+    if info is None: info = {}
+    try: 
         fast = stock.fast_info
         if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
         if info.get('currentPrice') is None: info['currentPrice'] = fast.get('last_price', 0)
@@ -179,14 +177,8 @@ def load_data_final(ticker, time):
     
     info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
 
-    try: fin = stock.quarterly_financials 
-    except: fin = pd.DataFrame()
-    try: bal = stock.quarterly_balance_sheet 
-    except: bal = pd.DataFrame()
-    try: cash = stock.quarterly_cashflow 
-    except: cash = pd.DataFrame()
-    try: holders = stock.major_holders
-    except: holders = pd.DataFrame()
+    try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
+    except: fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try: dividends = stock.dividends; splits = stock.splits
     except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
 
@@ -642,6 +634,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
