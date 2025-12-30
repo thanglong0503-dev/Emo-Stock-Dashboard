@@ -500,7 +500,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         """, unsafe_allow_html=True)
                         with st.expander("🔍 Chi tiết Cơ Bản (BCTC Quý)", expanded=True):
                             for d in fund['details']: 
-                                if "Thấp" in d or "Cao" in d or "Chưa" in d: st.warning(f"ℹ️ {d}")
+                                if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Săn Nến", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
