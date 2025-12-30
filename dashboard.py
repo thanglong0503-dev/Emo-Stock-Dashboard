@@ -212,18 +212,50 @@ def run_monte_carlo(df, days=30, simulations=1000):
     return fig, fig_hist, stats
 
 # ==========================================
-# 🧠 AI PREDICTION
+# 🧠 AI PREDICTION (FIXED V36.3: SAFE MODE)
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
     try:
+        # Chuẩn bị dữ liệu
         df_prophet = df.reset_index()[['Date', 'Close']].copy()
-        df_prophet.columns = ['ds', 'y']; df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
-        m = Prophet(daily_seasonality=True); m.fit(df_prophet)
-        future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
+        df_prophet.columns = ['ds', 'y']
+        df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
+        
+        # --- 🛠️ FIX V36.3: CẤU HÌNH AN TOÀN ---
+        m = Prophet(
+            daily_seasonality=True,      # Bật sóng ngày
+            weekly_seasonality=True,      # Bật sóng tuần
+            yearly_seasonality=True,      # Bật sóng năm
+            changepoint_prior_scale=0.05, # Độ nhạy trung bình (vừa đủ mượt, không quá giật)
+            seasonality_mode='additive'   # <-- QUAN TRỌNG NHẤT: Chế độ 'Cộng' an toàn, tránh lỗi giá âm
+        )
+        
+        m.fit(df_prophet)
+        
+        # Dự báo
+        future = m.make_future_dataframe(periods=periods)
+        forecast = m.predict(future)
+        
+        # Vẽ biểu đồ
         fig = plot_plotly(m, forecast)
-        fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
-        fig.update_layout(title=dict(text="🔮 AI Dự Báo", font=dict(size=20)), yaxis_title="Giá", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
+        
+        # Tùy chỉnh màu sắc cho đẹp mắt
+        fig.data[0].marker.color = '#22d3ee' # Màu nến thực tế (Xanh Neon)
+        fig.data[1].line.color = '#f472b6'   # Màu đường dự báo (Hồng Phấn)
+        # Cố gắng chỉnh màu vùng mây (nếu plotly cho phép truy cập)
+        try: fig.data[2]['marker']['color'] = 'rgba(244, 114, 182, 0.2)' 
+        except: pass
+
+        fig.update_layout(
+            title=dict(text="🔮 AI Prophet: Dự Báo Xu Hướng (Safe Mode)", font=dict(size=20)), 
+            yaxis_title="Giá Dự Kiến", 
+            template="plotly_dark", 
+            height=600, 
+            hovermode="x unified", 
+            dragmode="pan", 
+            margin=dict(l=0,r=0,t=50,b=0)
+        )
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
@@ -601,3 +633,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
