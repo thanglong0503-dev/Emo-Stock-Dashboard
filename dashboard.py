@@ -112,19 +112,11 @@ if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); s
 # 🧠 XỬ LÝ DỮ LIỆU
 # ==========================================
 @st.cache_data(ttl=300)
-def load_news_google(symbol):
-    try:
-        rss_url = f"https://news.google.com/rss/search?q=cổ+phiếu+{symbol}&hl=vi&gl=VN&ceid=VN:vi"
-        feed = feedparser.parse(rss_url)
-        return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
-    except: return []
-
-@st.cache_data(ttl=300)
 def load_data_final(ticker, time):
     t = f"{ticker}.VN"
     try:
         session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
         stock = yf.Ticker(t, session=session)
     except: stock = yf.Ticker(t)
     
@@ -148,7 +140,7 @@ def load_data_final(ticker, time):
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # 2. BIỂU ĐỒ (Cần dữ liệu để vẽ nến)
+    # 2. BIỂU ĐỒ
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
@@ -163,11 +155,10 @@ def load_data_final(ticker, time):
                 except: pass
     except: df_chart = pd.DataFrame()
 
-    # 3. INFO & BCTC (Sử dụng logic xử lý lỗi V36.1)
+    # 3. INFO & BCTC
     try: info = stock.info
     except: info = {}
     
-    # Fallback cơ bản để không lỗi code
     if info is None: info = {}
     try: 
         fast = stock.fast_info
@@ -634,6 +625,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
