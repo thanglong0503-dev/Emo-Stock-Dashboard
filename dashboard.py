@@ -120,16 +120,34 @@ def load_news_google(symbol):
 
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
-    t = f"{ticker}.VN"
-    try:
-        session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0'})
-        stock = yf.Ticker(t, session=session)
-    except: stock = yf.Ticker(t)
+    # --- 1. CƠ CHẾ DÒ SÀN TỰ ĐỘNG (FIX LỖI PVS/HNX) ---
+    # Hệ thống sẽ thử gắn đuôi .VN (HOSE) trước, nếu lỗi thì thử .HN (HNX/UPCOM)
+    suffixes = ['.VN', '.HN'] 
+    stock = None
+    df_calc = pd.DataFrame()
     
-    # 1. KỸ THUẬT
+    session = requests.Session()
+    session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
+    # Vòng lặp thử từng sàn
+    for suf in suffixes:
+        try:
+            t = f"{ticker}{suf}"
+            temp_stock = yf.Ticker(t, session=session)
+            temp_df = temp_stock.history(period="2y") # Lấy thử dữ liệu 2 năm
+            
+            if not temp_df.empty:
+                stock = temp_stock
+                df_calc = temp_df
+                break # Tìm thấy dữ liệu thì dừng lại ngay, chốt mã này
+        except: continue
+    
+    # Nếu thử cả 2 sàn mà vẫn không có dữ liệu -> Trả về rỗng để báo lỗi
+    if stock is None or df_calc.empty:
+        return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
+
+    # --- 2. XỬ LÝ KỸ THUẬT (Trên dữ liệu đã tìm thấy) ---
     try:
-        df_calc = stock.history(period="2y")
         if len(df_calc) > 100:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
             df_calc = df_calc.join(sti) 
@@ -147,14 +165,13 @@ def load_data_final(ticker, time):
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # 2. BIỂU ĐỒ (Cần dữ liệu để vẽ nến)
+    # --- 3. XỬ LÝ BIỂU ĐỒ ---
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
-            # Ichimoku Chart
             if interval == '1d':
                 try:
                     ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
@@ -162,13 +179,12 @@ def load_data_final(ticker, time):
                 except: pass
     except: df_chart = pd.DataFrame()
 
-    # 3. INFO & BCTC (Sử dụng logic xử lý lỗi V36.1)
+    # --- 4. TẢI INFO & BCTC ---
     try: info = stock.info
     except: info = {}
     
-    # Fallback cơ bản để không lỗi code
     if info is None: info = {}
-    try: 
+    try:
         fast = stock.fast_info
         if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
         if info.get('currentPrice') is None: info['currentPrice'] = fast.get('last_price', 0)
@@ -176,8 +192,14 @@ def load_data_final(ticker, time):
     
     info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
 
-    try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
-    except: fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    try: fin = stock.quarterly_financials 
+    except: fin = pd.DataFrame()
+    try: bal = stock.quarterly_balance_sheet 
+    except: bal = pd.DataFrame()
+    try: cash = stock.quarterly_cashflow 
+    except: cash = pd.DataFrame()
+    try: holders = stock.major_holders
+    except: holders = pd.DataFrame()
     try: dividends = stock.dividends; splits = stock.splits
     except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
 
@@ -633,6 +655,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
