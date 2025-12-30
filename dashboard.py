@@ -120,33 +120,35 @@ def load_news_google(symbol):
 
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
-    # --- 1. CƠ CHẾ DÒ SÀN TỰ ĐỘNG (FIX LỖI PVS/HNX) ---
-    # Hệ thống sẽ thử gắn đuôi .VN (HOSE) trước, nếu lỗi thì thử .HN (HNX/UPCOM)
-    suffixes = ['.VN', '.HN'] 
+    ticker = ticker.strip().upper()
+    
+    # Danh sách các đuôi cần thử (Ưu tiên HOSE trước, HNX sau, rồi đến UPCOM/Gốc)
+    candidates = [f"{ticker}.VN", f"{ticker}.HN", ticker]
+    
     stock = None
     df_calc = pd.DataFrame()
-    
-    session = requests.Session()
-    session.headers.update({'User-Agent': 'Mozilla/5.0'})
 
-    # Vòng lặp thử từng sàn
-    for suf in suffixes:
+    # 1. VÒNG LẶP DÒ TÌM (Cơ chế Ping nhanh)
+    for t in candidates:
         try:
-            t = f"{ticker}{suf}"
-            temp_stock = yf.Ticker(t, session=session)
-            temp_df = temp_stock.history(period="2y") # Lấy thử dữ liệu 2 năm
+            temp_stock = yf.Ticker(t)
+            # Chỉ tải 1 tuần để kiểm tra xem mã có tồn tại không (cho nhanh)
+            check_data = temp_stock.history(period="5d")
             
-            if not temp_df.empty:
+            if not check_data.empty:
+                # Nếu tìm thấy dữ liệu -> Chốt mã này là đúng
                 stock = temp_stock
-                df_calc = temp_df
-                break # Tìm thấy dữ liệu thì dừng lại ngay, chốt mã này
-        except: continue
-    
-    # Nếu thử cả 2 sàn mà vẫn không có dữ liệu -> Trả về rỗng để báo lỗi
-    if stock is None or df_calc.empty:
+                # Tải dữ liệu thật (2 năm) để tính toán
+                df_calc = temp_stock.history(period="2y")
+                break 
+        except: 
+            continue
+            
+    # Nếu thử hết cách mà vẫn rỗng -> Trả về rỗng để báo lỗi
+    if df_calc.empty:
         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
 
-    # --- 2. XỬ LÝ KỸ THUẬT (Trên dữ liệu đã tìm thấy) ---
+    # 2. XỬ LÝ KỸ THUẬT (Trên dữ liệu đã tìm thấy)
     try:
         if len(df_calc) > 100:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
@@ -165,7 +167,7 @@ def load_data_final(ticker, time):
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # --- 3. XỬ LÝ BIỂU ĐỒ ---
+    # 3. XỬ LÝ BIỂU ĐỒ
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
@@ -179,7 +181,7 @@ def load_data_final(ticker, time):
                 except: pass
     except: df_chart = pd.DataFrame()
 
-    # --- 4. TẢI INFO & BCTC ---
+    # 4. TẢI INFO & BCTC (Anti-Ugly V36.1)
     try: info = stock.info
     except: info = {}
     
@@ -655,6 +657,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
