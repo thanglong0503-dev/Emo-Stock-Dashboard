@@ -107,63 +107,81 @@ TRANS_MAP = {'Total Revenue': '1. Tổng Doanh Thu', 'Net Income': '2. Lợi Nhu
 mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 Bảng Giá & Máy Quét", "📘 Hướng Dẫn & Quy Tắc"])
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
-# ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU
-# ==========================================
-@st.cache_data(ttl=300)
-def load_news_google(symbol):
-    try:
-        rss_url = f"https://news.google.com/rss/search?q=cổ+phiếu+{symbol}&hl=vi&gl=VN&ceid=VN:vi"
-        feed = feedparser.parse(rss_url)
-        return [{'title': e.title, 'link': e.link, 'published': e.get('published','')[:16]} for e in feed.entries[:10]]
-    except: return []
 
+# ==========================================
+# 🧠 XỬ LÝ DỮ LIỆU (V36.6: SSI + YAHOO HYBRID)
+# ==========================================
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
     ticker = ticker.strip().upper()
-    
-    # 1. DANH SÁCH ĐẶC BIỆT (Xử lý sàn HNX/UPCOM cho chuẩn Yahoo)
-    # Những mã này Yahoo bắt buộc phải có đuôi .HN (Hà Nội) thay vì .VN
-    HNX_UPCOM_LIST = [
-        'PVS', 'SHS', 'CEO', 'MBS', 'IDC', 'HUT', 'TNG', 'VCS', 'PVI', 'VGS', # HNX
-        'BSR', 'OIL', 'QNS', 'MCH', 'VEA', 'VGI', 'ACV', 'VTP' # UPCOM (Một số mã UPCOM Yahoo cũng dùng .HN hoặc để trơn)
-    ]
-    
-    # Logic tạo mã chuẩn cho Yahoo
-    if ticker in HNX_UPCOM_LIST:
-        yahoo_ticker = f"{ticker}.HN"
-    else:
-        yahoo_ticker = f"{ticker}.VN" # Mặc định HOSE
-
-    # 2. TẠO PHIÊN KẾT NỐI GIẢ LẬP TRÌNH DUYỆT (Để vượt chặn IP)
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9'
-    })
-
-    stock = None
     df_calc = pd.DataFrame()
-
-    # 3. THỬ TẢI DỮ LIỆU (Cơ chế thử lại nếu sai đuôi)
+    df_chart = pd.DataFrame()
+    
+    # ---------------------------------------------------------
+    # CÁCH 1: DÙNG SSI API (Nhanh, Chính xác, Không cần đuôi .VN/.HN)
+    # ---------------------------------------------------------
     try:
-        # Thử mã chuẩn đoán trước (Ví dụ PVS.HN)
-        stock = yf.Ticker(yahoo_ticker, session=session)
-        df_calc = stock.history(period="2y")
+        # Chuyển đổi khung thời gian sang SSI format
+        resolution = 'D'
+        start_date = (datetime.now() - timedelta(days=730)).strftime('%d/%m/%Y')
+        end_date = datetime.now().strftime('%d/%m/%Y')
         
-        # Nếu rỗng, có thể Yahoo đổi quy định, thử lại mã gốc hoặc đuôi kia
-        if df_calc.empty:
-            alt_ticker = f"{ticker}.VN" if ".HN" in yahoo_ticker else f"{ticker}.HN"
-            stock = yf.Ticker(alt_ticker, session=session)
-            df_calc = stock.history(period="2y")
-    except: pass
+        # SSI timestamp inputs
+        t_to = int(datetime.now().timestamp())
+        t_from = int((datetime.now() - timedelta(days=730)).timestamp())
+        
+        url = f"https://iboard.ssi.com.vn/dchart/api/history?symbol={ticker}&resolution={resolution}&from={t_from}&to={t_to}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://iboard.ssi.com.vn/'
+        }
+        
+        resp = requests.get(url, headers=headers, timeout=5).json()
+        
+        if 't' in resp and len(resp['t']) > 0:
+            df_ssi = pd.DataFrame({
+                'Date': pd.to_datetime(resp['t'], unit='s'),
+                'Open': resp['o'],
+                'High': resp['h'],
+                'Low': resp['l'],
+                'Close': resp['c'],
+                'Volume': resp['v']
+            })
+            df_ssi.set_index('Date', inplace=True)
+            df_calc = df_ssi.sort_index()
+            # st.toast(f"✅ Đã lấy dữ liệu {ticker} từ SSI!") # Báo thành công
+    except: 
+        pass 
 
-    # Nếu vẫn rỗng -> Trả về lỗi
+    # ---------------------------------------------------------
+    # CÁCH 2: DÙNG YAHOO FINANCE (Dự phòng nếu SSI chặn)
+    # ---------------------------------------------------------
+    stock = None
+    if df_calc.empty:
+        # st.toast(f"⚠️ SSI lỗi, đang thử Yahoo cho {ticker}...") 
+        # Thử các đuôi sàn
+        candidates = [f"{ticker}.VN", f"{ticker}.HN", ticker]
+        
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
+        for t in candidates:
+            try:
+                temp_stock = yf.Ticker(t, session=session)
+                hist = temp_stock.history(period="2y")
+                if not hist.empty:
+                    df_calc = hist
+                    stock = temp_stock
+                    break
+            except: continue
+
+    # ---------------------------------------------------------
+    # XỬ LÝ DỮ LIỆU ĐÃ LẤY ĐƯỢC
+    # ---------------------------------------------------------
     if df_calc.empty:
         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
 
-    # 4. XỬ LÝ KỸ THUẬT & CHART (Giữ nguyên logic V36)
+    # 1. Tính toán Kỹ thuật (Chỉ báo)
     try:
         if len(df_calc) > 50:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
@@ -181,48 +199,50 @@ def load_data_final(ticker, time):
             except: pass
     except: pass
 
-    df_chart = pd.DataFrame()
+    # 2. Cắt dữ liệu cho Biểu đồ
     try:
-        interval = "15m" if time in ["1d", "5d"] else "1d"
-        df_chart = stock.history(period=time, interval=interval)
+        if time == "1d": df_chart = df_calc.tail(100) 
+        elif time == "5d": df_chart = df_calc.tail(10) # SSI daily only
+        elif time == "1mo": df_chart = df_calc.tail(22)
+        elif time == "6mo": df_chart = df_calc.tail(130)
+        elif time == "1y": df_chart = df_calc.tail(260)
+        else: df_chart = df_calc
+        
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
-            if interval == '1d':
-                try:
-                    ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
-                except: pass
+            try:
+                ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
+            except: pass
     except: pass
 
-    # 5. TẢI INFO CƠ BẢN
-    try: info = stock.info
-    except: info = {}
-    if info is None: info = {}
+    # 3. Tải Info & BCTC (Cố gắng lấy từ Yahoo nếu có stock object)
+    info = {}
+    fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    divs, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
     
-    # Fallback giá/vốn hóa nếu info thiếu
-    try:
-        fast = stock.fast_info
-        if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
-        if info.get('currentPrice') is None: info['currentPrice'] = fast.get('last_price', 0)
-    except: pass
-    
-    info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
+    # Nếu lấy giá từ SSI, ta vẫn cần Yahoo để lấy BCTC
+    if stock is None:
+        try: 
+            # Đoán mã Yahoo để lấy Info
+            yahoo_t = f"{ticker}.VN" if len(ticker) == 3 else ticker
+            stock = yf.Ticker(yahoo_t)
+        except: pass
 
-    # Các dữ liệu phụ
-    try: fin = stock.quarterly_financials 
-    except: fin = pd.DataFrame()
-    try: bal = stock.quarterly_balance_sheet 
-    except: bal = pd.DataFrame()
-    try: cash = stock.quarterly_cashflow 
-    except: cash = pd.DataFrame()
-    try: holders = stock.major_holders
-    except: holders = pd.DataFrame()
-    try: dividends = stock.dividends; splits = stock.splits
-    except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
+    if stock:
+        try: info = stock.info
+        except: pass
+        if info is None: info = {}
+        info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
+        
+        try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
+        except: pass
+        try: dividends = stock.dividends; splits = stock.splits
+        except: pass
 
     news = load_news_google(ticker)
-    return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
+    return df_calc, df_chart, info, fin, bal, cash, holders, news, divs, splits
 
 # ==========================================
 # 🧠 MONTE CARLO SIMULATION
@@ -673,6 +693,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
