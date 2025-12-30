@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas_ta as ta
 import feedparser
@@ -18,7 +19,7 @@ except ImportError:
     PROPHET_AVAILABLE = False
 
 # --- 1. CẤU HÌNH TRANG WEB ---
-st.set_page_config(layout="wide", page_title="ThangLong Ultimate V36.8", page_icon="🐲")
+st.set_page_config(layout="wide", page_title="ThangLong Ultimate V36.1", page_icon="🐲")
 
 # ==========================================
 # 🔐 HỆ THỐNG ĐĂNG NHẬP
@@ -107,7 +108,7 @@ mode = st.sidebar.radio("Chế độ:", ["🔮 Phân Tích Chuyên Sâu", "📊 
 if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); st.rerun()
 
 # ==========================================
-# 🧠 XỬ LÝ DỮ LIỆU (V36.8 FIXED)
+# 🧠 XỬ LÝ DỮ LIỆU
 # ==========================================
 @st.cache_data(ttl=300)
 def load_news_google(symbol):
@@ -119,48 +120,16 @@ def load_news_google(symbol):
 
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
-    ticker = ticker.strip().upper()
-    
-    # 1. THIẾT LẬP SESSION & HEADER (ĐỂ VƯỢT CHẶN IP)
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-    })
-
-    # 2. CƠ CHẾ DÒ SÀN THÔNG MINH
-    # Nếu mã là PVS, SHS, BSR... ưu tiên thử .HN trước
-    hnx_upcom = ['PVS', 'SHS', 'CEO', 'MBS', 'IDC', 'BSR', 'OIL', 'VTP', 'ACV']
-    
-    if ticker in hnx_upcom:
-        candidates = [f"{ticker}.HN", f"{ticker}.VN"]
-    else:
-        candidates = [f"{ticker}.VN", f"{ticker}.HN"]
-
-    stock = None
-    df_calc = pd.DataFrame()
-
-    # Vòng lặp thử kết nối
-    for t in candidates:
-        try:
-            temp_stock = yf.Ticker(t, session=session)
-            # Tải thử 5 ngày gần nhất để xem có dữ liệu không
-            history = temp_stock.history(period="5d")
-            
-            if not history.empty:
-                stock = temp_stock
-                # Nếu có, tải full 2 năm
-                df_calc = temp_stock.history(period="2y")
-                break
-        except: continue
-    
-    # Nếu vẫn rỗng sau khi thử hết
-    if df_calc.empty:
-         # Trả về rỗng để App không bị crash (NameError)
-         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
-
-    # 3. XỬ LÝ KỸ THUẬT
+    t = f"{ticker}.VN"
     try:
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
+        stock = yf.Ticker(t, session=session)
+    except: stock = yf.Ticker(t)
+    
+    # 1. KỸ THUẬT
+    try:
+        df_calc = stock.history(period="2y")
         if len(df_calc) > 100:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
             df_calc = df_calc.join(sti) 
@@ -171,33 +140,35 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
+            # Ichimoku
             try:
                 ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
                 if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # 4. XỬ LÝ BIỂU ĐỒ
-    df_chart = pd.DataFrame()
+    # 2. BIỂU ĐỒ (Cần dữ liệu để vẽ nến)
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
+            # Ichimoku Chart
             if interval == '1d':
                 try:
-                    ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
+                    ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
                 except: pass
-    except: pass
+    except: df_chart = pd.DataFrame()
 
-    # 5. TẢI THÔNG TIN CƠ BẢN
+    # 3. INFO & BCTC (Sử dụng logic xử lý lỗi V36.1)
     try: info = stock.info
     except: info = {}
-    if info is None: info = {}
     
-    try:
+    # Fallback cơ bản để không lỗi code
+    if info is None: info = {}
+    try: 
         fast = stock.fast_info
         if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
         if info.get('currentPrice') is None: info['currentPrice'] = fast.get('last_price', 0)
@@ -205,20 +176,10 @@ def load_data_final(ticker, time):
     
     info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
 
-    # Khởi tạo biến rỗng để tránh lỗi NameError
-    fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    divs, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
-
-    try: fin = stock.quarterly_financials; 
-    except: pass
-    try: bal = stock.quarterly_balance_sheet; 
-    except: pass
-    try: cash = stock.quarterly_cashflow; 
-    except: pass
-    try: holders = stock.major_holders
-    except: pass
+    try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
+    except: fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     try: dividends = stock.dividends; splits = stock.splits
-    except: pass
+    except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
 
     news = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
@@ -251,41 +212,18 @@ def run_monte_carlo(df, days=30, simulations=1000):
     return fig, fig_hist, stats
 
 # ==========================================
-# 🧠 AI PREDICTION (FIXED V36.3: SAFE MODE)
+# 🧠 AI PREDICTION
 # ==========================================
 def run_prophet_forecast(df, periods=90):
     if not PROPHET_AVAILABLE: return None, "⚠️ Chưa cài thư viện Prophet."
     try:
         df_prophet = df.reset_index()[['Date', 'Close']].copy()
         df_prophet.columns = ['ds', 'y']; df_prophet['ds'] = df_prophet['ds'].dt.tz_localize(None)
-        
-        m = Prophet(
-            daily_seasonality=False,      # Tắt sóng ngày
-            weekly_seasonality=True,      # Bật sóng tuần
-            yearly_seasonality=True,      # Bật sóng năm
-            changepoint_prior_scale=0.05, # Độ nhạy chuẩn
-            seasonality_mode='additive'   # Chế độ Cộng an toàn
-        )
-        m.fit(df_prophet)
-        
-        future = m.make_future_dataframe(periods=periods)
-        forecast = m.predict(future)
-        
+        m = Prophet(daily_seasonality=True); m.fit(df_prophet)
+        future = m.make_future_dataframe(periods=periods); forecast = m.predict(future)
         fig = plot_plotly(m, forecast)
-        fig.data[0].marker.color = '#22d3ee' 
-        fig.data[1].line.color = '#f472b6'   
-        try: fig.data[2]['marker']['color'] = 'rgba(244, 114, 182, 0.2)' 
-        except: pass
-
-        fig.update_layout(
-            title=dict(text="🔮 AI Prophet: Dự Báo Xu Hướng", font=dict(size=20)), 
-            yaxis_title="Giá Dự Kiến", 
-            template="plotly_dark", 
-            height=600, 
-            hovermode="x unified", 
-            dragmode="pan", 
-            margin=dict(l=0,r=0,t=50,b=0)
-        )
+        fig.data[0].marker.color = '#22d3ee'; fig.data[1].line.color = '#f472b6'
+        fig.update_layout(title=dict(text="🔮 AI Dự Báo", font=dict(size=20)), yaxis_title="Giá", template="plotly_dark", height=600, hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=50,b=0))
         fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
         return fig, None
     except Exception as e: return None, f"Lỗi dự báo: {str(e)}"
@@ -332,81 +270,149 @@ def analyze_smart(df):
     return {"score": final_score, "action": action, "zone": zone, "pros": pros, "cons": cons, "entry": close, "stop": stop_loss, "target": take_profit}
 
 # ==========================================
-# 🧠 PHÂN TÍCH CƠ BẢN (ANTI-UGLY)
+# 🧠 PHÂN TÍCH CƠ BẢN (FIXED V36.1: ANTI-UGLY)
 # ==========================================
 def analyze_fundamental(info, fin, bal, price_now):
     score = 0; details = []
+    
+    # 1. Kiểm tra dữ liệu đầu vào. Nếu Yahoo chặn, các giá trị này sẽ là None.
     pe = info.get('trailingPE')
     pb = info.get('priceToBook')
     roe = info.get('returnOnEquity')
     
+    # Nếu không có dữ liệu quan trọng, trả về trạng thái "Chưa có dữ liệu" (Xám) thay vì "Yếu kém" (Đỏ)
     if pe is None and pb is None:
-        return {"health": "CHƯA CÓ DỮ LIỆU", "color": "#9ca3af", "details": ["⚠️ Yahoo Finance đang cập nhật.", "👉 Vui lòng xem tại CafeF."]}
+        return {"health": "CHƯA CÓ DỮ LIỆU", "color": "#9ca3af", "details": ["⚠️ Yahoo Finance chưa cập nhật BCTC.", "👉 Vui lòng xem tại CafeF/Vietstock."]}
 
+    # Nếu có dữ liệu, tiến hành chấm điểm
     try:
         mkt_cap = info.get('marketCap', 0)
+        
+        # PE Logic
         if pe:
             if 0 < pe < 15: score += 2; details.append(f"P/E Hấp dẫn ({pe:.1f}x)")
             elif pe >= 15: details.append(f"P/E Khá cao ({pe:.1f}x)")
+        
+        # PB Logic
         if pb:
             if 0 < pb < 1.5: score += 1; details.append(f"P/B Rẻ ({pb:.1f}x)")
+        
+        # ROE Logic (Yahoo trả về dạng thập phân, ví dụ 0.21)
         if roe:
             roe_pct = roe * 100
             if roe_pct > 15: score += 2; details.append(f"ROE Xuất sắc ({roe_pct:.1f}%)")
             elif roe_pct > 10: score += 1; details.append(f"ROE Ổn định ({roe_pct:.1f}%)")
             else: details.append(f"ROE Thấp ({roe_pct:.1f}%)")
+            
         if mkt_cap > 0: details.append(f"Vốn hóa: {mkt_cap/1e9:,.0f} tỷ")
+        
+        # Thử lấy thêm thông tin từ BCTC nếu có
+        net_growth = 0
+        if not fin.empty and len(fin.columns) >= 2:
+            try:
+                net_now = fin.loc['Net Income'].iloc[0]; net_prev = fin.loc['Net Income'].iloc[1]
+                if abs(net_prev) > 0: 
+                    net_growth = (net_now - net_prev) / abs(net_prev)
+                    if net_growth > 0.1: score += 2; details.append(f"🚀 LN Tăng trưởng ({net_growth:.1%})")
+            except: pass
+
     except: pass
 
+    # Xếp hạng
     health, color = ("TRUNG BÌNH", "#f59e0b")
     if score >= 5: health, color = ("KIM CƯƠNG 💎", "#10b981") 
     elif score >= 3: health, color = ("VỮNG MẠNH 💪", "#3b82f6")
     elif score < 3: health, color = ("CẦN CẨN TRỌNG ⚠️", "#ef4444")
+    
     return {"health": health, "color": color, "details": details}
 
 # ==========================================
-# 🛠️ CHART & CANDLESTICK
+# 🛠️ HÀM HỖ TRỢ & CHART (V36 - SĂN NẾN NHẬT)
 # ==========================================
+def clean_table(df):
+    if df.empty: return pd.DataFrame()
+    valid = [i for i in df.index if i in TRANS_MAP]
+    if not valid: return df
+    df_new = df.loc[valid].rename(index=TRANS_MAP)
+    for col in df_new.columns:
+        for idx in df_new.index:
+            if isinstance(df_new.loc[idx, col], (int, float)): df_new.loc[idx, col] = df_new.loc[idx, col] / 1e9
+    return df_new
+
+def safe_fmt(val):
+    try: return f"{int(val):,}"
+    except: return "N/A"
+
 def identify_candlestick_patterns(df):
+    # Logic nhận diện mẫu hình nến đơn giản, nhẹ, không dùng thư viện nặng
     patterns = []
     if len(df) < 3: return patterns
+    
+    # Duyệt qua 20 nến cuối cùng để đỡ rối
     subset = df.iloc[-20:].copy()
+    
     for i in range(1, len(subset)):
-        curr = subset.iloc[i]; prev = subset.iloc[i-1]
-        if (prev['Close'] < prev['Open']) and (curr['Close'] > curr['Open']) and (curr['Close'] > prev['Open']) and (curr['Open'] < prev['Close']):
+        curr = subset.iloc[i]
+        prev = subset.iloc[i-1]
+        
+        # 1. Bullish Engulfing (Nhấn chìm tăng)
+        if (prev['Close'] < prev['Open']) and (curr['Close'] > curr['Open']) and \
+           (curr['Close'] > prev['Open']) and (curr['Open'] < prev['Close']):
             patterns.append({'Date': curr.name, 'Label': '▲ Engulf', 'Color': '#00ff00', 'Y': curr['Low']})
-        elif (prev['Close'] > prev['Open']) and (curr['Close'] < curr['Open']) and (curr['Close'] < prev['Open']) and (curr['Open'] > prev['Close']):
+            
+        # 2. Bearish Engulfing (Nhấn chìm giảm)
+        elif (prev['Close'] > prev['Open']) and (curr['Close'] < curr['Open']) and \
+             (curr['Close'] < prev['Open']) and (curr['Open'] > prev['Close']):
             patterns.append({'Date': curr.name, 'Label': '▼ Engulf', 'Color': '#ff0000', 'Y': curr['High']})
+            
+        # 3. Hammer (Búa - Đảo chiều tăng ở đáy)
         body = abs(curr['Close'] - curr['Open'])
         lower_shadow = min(curr['Close'], curr['Open']) - curr['Low']
         upper_shadow = curr['High'] - max(curr['Close'], curr['Open'])
-        if (lower_shadow > 2 * body) and (upper_shadow < body) and (curr['Close'] < df['Close'].rolling(20).mean().iloc[-1]):
+        
+        if (lower_shadow > 2 * body) and (upper_shadow < body) and (curr['Close'] < df['Close'].rolling(20).mean().iloc[-1]): # Đang ở vùng thấp
             patterns.append({'Date': curr.name, 'Label': '🔨 Hammer', 'Color': '#00ff00', 'Y': curr['Low']})
-        if (upper_shadow > 2 * body) and (lower_shadow < body) and (curr['Close'] > df['Close'].rolling(20).mean().iloc[-1]):
+
+        # 4. Shooting Star (Sao đổi ngôi - Đảo chiều giảm ở đỉnh)
+        if (upper_shadow > 2 * body) and (lower_shadow < body) and (curr['Close'] > df['Close'].rolling(20).mean().iloc[-1]): # Đang ở vùng cao
             patterns.append({'Date': curr.name, 'Label': '☄️ Star', 'Color': '#ff0000', 'Y': curr['High']})
+            
     return patterns
 
 def render_pro_chart(df, symbol):
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3], vertical_spacing=0.03)
     fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Giá'), row=1, col=1)
+    
+    # MA20
     if 'SMA_20' in df.columns: fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='#fb8c00', width=1), name='MA20'), row=1, col=1)
+    
+    # ICHIMOKU (V35)
     if 'ITS_9' in df.columns:
         fig.add_trace(go.Scatter(x=df.index, y=df['ITS_9'], line=dict(color='#22d3ee', width=1.5), name='Tenkan'), row=1, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df['IKS_26'], line=dict(color='#ef4444', width=1.5), name='Kijun'), row=1, col=1)
     
+    # FIBONACCI (V34)
     max_h = df['High'].max(); min_l = df['Low'].min(); diff = max_h - min_l
     if diff > 0:
-        levels = [0.382, 0.5, 0.618]; colors_fib = ['#94a3b8', '#facc15', '#eab308'] 
+        levels = [0.382, 0.5, 0.618]
+        colors_fib = ['#94a3b8', '#facc15', '#eab308'] 
         for i, lvl in enumerate(levels):
             price_lvl = max_h - (diff * lvl)
             fig.add_shape(type="line", x0=df.index[0], x1=df.index[-1], y0=price_lvl, y1=price_lvl, line=dict(color=colors_fib[i], width=1, dash="dot"), row=1, col=1)
     
+    # --- VẼ NẾN NHẬT (V36 NEW) ---
     patterns = identify_candlestick_patterns(df)
     for p in patterns:
-        fig.add_annotation(x=p['Date'], y=p['Y'], text=p['Label'], showarrow=True, arrowhead=1, arrowcolor=p['Color'], font=dict(color=p['Color'], size=11, weight="bold"), row=1, col=1)
+        fig.add_annotation(
+            x=p['Date'], y=p['Y'], text=p['Label'],
+            showarrow=True, arrowhead=1, arrowcolor=p['Color'],
+            font=dict(color=p['Color'], size=11, weight="bold"),
+            row=1, col=1
+        )
 
     colors = ['#ef4444' if r['Open'] > r['Close'] else '#10b981' for i, r in df.iterrows()]
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], marker_color=colors, name='Volume'), row=2, col=1)
+    
     fig.update_layout(height=700, template="plotly_dark", hovermode="x unified", dragmode="pan", margin=dict(l=0,r=0,t=0,b=0), xaxis_rangeslider_visible=True, xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor='#333'))
     fig.update_xaxes(rangeslider=dict(visible=True, thickness=0.05))
     st.plotly_chart(fig, use_container_width=True)
@@ -500,7 +506,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                         """, unsafe_allow_html=True)
                         with st.expander("🔍 Chi tiết Cơ Bản (BCTC Quý)", expanded=True):
                             for d in fund['details']: 
-                                if "cao" in d or "Kém" in d or "giảm" in d: st.warning(f"⚠️ {d}")
+                                if "cao" in d or "Kém" in d or "giảm" in d or "Thấp" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Săn Nến", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
@@ -551,7 +557,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
             st.error(f"❌ Không tìm thấy dữ liệu cho mã '{symbol}'. Có thể mã bị sai hoặc mới lên sàn chưa đủ dữ liệu phân tích.")
 
 elif mode == "📊 Bảng Giá & Máy Quét":
-    st.title("📊 Máy Quét Siêu Hạng V36.8")
+    st.title("📊 Máy Quét Siêu Hạng V36.1")
     all_tabs = ["🛠️ Tự Nhập"] + list(STOCK_GROUPS.keys())
     tabs = st.tabs(all_tabs)
     with tabs[0]:
@@ -594,4 +600,4 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                     if not df_res.empty and df_res.iloc[0]['Điểm'] >= 7: 
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
-st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.8 Ultimate - Final Stable Fix</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
