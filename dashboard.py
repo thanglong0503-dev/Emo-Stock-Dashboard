@@ -113,17 +113,41 @@ if st.sidebar.button("🔄 Xóa Cache & Cập Nhật"): st.cache_data.clear(); s
 # ==========================================
 @st.cache_data(ttl=300)
 def load_data_final(ticker, time):
-    t = f"{ticker}.VN"
-    try:
-        session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
-        stock = yf.Ticker(t, session=session)
-    except: stock = yf.Ticker(t)
+    ticker = ticker.strip().upper()
     
-    # 1. KỸ THUẬT
+    # 1. CƠ CHẾ DÒ TÌM MẠNH MẼ (Dùng yf.download thay vì Ticker.history)
+    # Thử lần lượt: .VN (HOSE) -> .HN (HNX/UPCOM) -> Mã gốc
+    try_list = [f"{ticker}.VN", f"{ticker}.HN", ticker]
+    
+    df_calc = pd.DataFrame()
+    stock = None
+    final_ticker = ""
+
+    for t in try_list:
+        try:
+            # Dùng yf.download - "Cỗ xe tăng" xuyên phá chặn IP tốt hơn
+            data = yf.download(t, period="2y", progress=False, auto_adjust=True)
+            
+            # Kiểm tra xem có dữ liệu không
+            if not data.empty and len(data) > 10:
+                df_calc = data
+                final_ticker = t
+                # Tạo đối tượng Ticker để lấy thông tin phụ sau này
+                stock = yf.Ticker(t)
+                break 
+        except: continue
+    
+    # Nếu vẫn không có dữ liệu -> Trả về rỗng
+    if df_calc.empty:
+         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
+
+    # --- CHUẨN HÓA DỮ LIỆU (Vì yf.download trả về hơi khác Ticker.history) ---
+    # Đổi tên cột cho chuẩn với logic cũ
+    if 'Adj Close' in df_calc.columns: df_calc = df_calc.rename(columns={'Adj Close': 'Close'})
+    
+    # 2. KỸ THUẬT
     try:
-        df_calc = stock.history(period="2y")
-        if len(df_calc) > 100:
+        if len(df_calc) > 50:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
             df_calc = df_calc.join(sti) 
             df_calc.ta.mfi(length=14, append=True); df_calc.ta.stochrsi(length=14, append=True)
@@ -133,45 +157,54 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
-            # Ichimoku
             try:
                 ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
                 if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
             except: pass
     except: df_calc = pd.DataFrame()
 
-    # 2. BIỂU ĐỒ
+    # 3. BIỂU ĐỒ (Lấy lại dữ liệu ngắn hạn theo khung thời gian chọn)
+    df_chart = pd.DataFrame()
     try:
-        interval = "15m" if time in ["1d", "5d"] else "1d"
-        df_chart = stock.history(period=time, interval=interval)
+        # Nếu chọn 1d/5d thì cần nến phút, phải dùng Ticker để lấy
+        if time in ["1d", "5d"]:
+            df_chart = stock.history(period=time, interval="15m")
+        else:
+            # Nếu dài hạn thì cắt từ df_calc ra cho nhanh
+            if time == "1mo": df_chart = df_calc.tail(22)
+            elif time == "6mo": df_chart = df_calc.tail(130)
+            elif time == "1y": df_chart = df_calc.tail(260)
+            else: df_chart = df_calc.copy()
+
         if not df_chart.empty:
             df_chart.ta.sma(length=20, append=True)
             df_chart.ta.bbands(length=20, std=2, append=True)
-            # Ichimoku Chart
-            if interval == '1d':
+            # Ichimoku cho chart ngày
+            if time not in ["1d", "5d"]:
                 try:
-                    ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
+                    ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                    if ichi_c is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
                 except: pass
-    except: df_chart = pd.DataFrame()
-
-    # 3. INFO & BCTC
-    try: info = stock.info
-    except: info = {}
-    
-    if info is None: info = {}
-    try: 
-        fast = stock.fast_info
-        if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
-        if info.get('currentPrice') is None: info['currentPrice'] = fast.get('last_price', 0)
     except: pass
-    
-    info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
 
-    try: fin = stock.quarterly_financials; bal = stock.quarterly_balance_sheet; cash = stock.quarterly_cashflow; holders = stock.major_holders
-    except: fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    try: dividends = stock.dividends; splits = stock.splits
-    except: dividends, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
+    # 4. THÔNG TIN & BCTC
+    info = {}
+    fin, bal, cash, holders = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    divs, splits = pd.Series(dtype='float64'), pd.Series(dtype='float64')
+
+    try:
+        info = stock.info
+        if info is None: info = {}
+        # Fallback giá nếu info lỗi
+        if info.get('currentPrice') is None: info['currentPrice'] = df_calc.iloc[-1]['Close']
+        info['longName'] = info.get('longName', f"Mã {ticker}")
+        
+        fin = stock.quarterly_financials
+        bal = stock.quarterly_balance_sheet
+        cash = stock.quarterly_cashflow
+        dividends = stock.dividends
+        splits = stock.splits
+    except: pass
 
     news = load_news_google(ticker)
     return df_calc, df_chart, info, fin, bal, cash, holders, news, dividends, splits
@@ -625,6 +658,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
