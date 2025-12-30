@@ -498,7 +498,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                             <div style="font-size: 36px; font-weight:bold; margin: 15px 0; color: {fund['color']}">{fund['health']}</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        with st.expander("🔍 Chi tiết Cơ Bản", expanded=True):
+                        with st.expander("🔍 Chi tiết Cơ Bản (BCTC Quý)", expanded=True):
                             for d in fund['details']: 
                                 if "Thấp" in d or "Cao" in d or "Chưa" in d: st.warning(f"ℹ️ {d}")
                                 else: st.write(f"✅ {d}")
