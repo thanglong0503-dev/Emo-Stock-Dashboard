@@ -122,35 +122,50 @@ def load_news_google(symbol):
 def load_data_final(ticker, time):
     ticker = ticker.strip().upper()
     
-    # Danh sách các đuôi cần thử (Ưu tiên HOSE trước, HNX sau, rồi đến UPCOM/Gốc)
-    candidates = [f"{ticker}.VN", f"{ticker}.HN", ticker]
+    # 1. DANH SÁCH ĐẶC BIỆT (Xử lý sàn HNX/UPCOM cho chuẩn Yahoo)
+    # Những mã này Yahoo bắt buộc phải có đuôi .HN (Hà Nội) thay vì .VN
+    HNX_UPCOM_LIST = [
+        'PVS', 'SHS', 'CEO', 'MBS', 'IDC', 'HUT', 'TNG', 'VCS', 'PVI', 'VGS', # HNX
+        'BSR', 'OIL', 'QNS', 'MCH', 'VEA', 'VGI', 'ACV', 'VTP' # UPCOM (Một số mã UPCOM Yahoo cũng dùng .HN hoặc để trơn)
+    ]
     
+    # Logic tạo mã chuẩn cho Yahoo
+    if ticker in HNX_UPCOM_LIST:
+        yahoo_ticker = f"{ticker}.HN"
+    else:
+        yahoo_ticker = f"{ticker}.VN" # Mặc định HOSE
+
+    # 2. TẠO PHIÊN KẾT NỐI GIẢ LẬP TRÌNH DUYỆT (Để vượt chặn IP)
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+    })
+
     stock = None
     df_calc = pd.DataFrame()
 
-    # 1. VÒNG LẶP DÒ TÌM (Cơ chế Ping nhanh)
-    for t in candidates:
-        try:
-            temp_stock = yf.Ticker(t)
-            # Chỉ tải 1 tuần để kiểm tra xem mã có tồn tại không (cho nhanh)
-            check_data = temp_stock.history(period="5d")
-            
-            if not check_data.empty:
-                # Nếu tìm thấy dữ liệu -> Chốt mã này là đúng
-                stock = temp_stock
-                # Tải dữ liệu thật (2 năm) để tính toán
-                df_calc = temp_stock.history(period="2y")
-                break 
-        except: 
-            continue
-            
-    # Nếu thử hết cách mà vẫn rỗng -> Trả về rỗng để báo lỗi
+    # 3. THỬ TẢI DỮ LIỆU (Cơ chế thử lại nếu sai đuôi)
+    try:
+        # Thử mã chuẩn đoán trước (Ví dụ PVS.HN)
+        stock = yf.Ticker(yahoo_ticker, session=session)
+        df_calc = stock.history(period="2y")
+        
+        # Nếu rỗng, có thể Yahoo đổi quy định, thử lại mã gốc hoặc đuôi kia
+        if df_calc.empty:
+            alt_ticker = f"{ticker}.VN" if ".HN" in yahoo_ticker else f"{ticker}.HN"
+            stock = yf.Ticker(alt_ticker, session=session)
+            df_calc = stock.history(period="2y")
+    except: pass
+
+    # Nếu vẫn rỗng -> Trả về lỗi
     if df_calc.empty:
         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), [], pd.Series(), pd.Series()
 
-    # 2. XỬ LÝ KỸ THUẬT (Trên dữ liệu đã tìm thấy)
+    # 4. XỬ LÝ KỸ THUẬT & CHART (Giữ nguyên logic V36)
     try:
-        if len(df_calc) > 100:
+        if len(df_calc) > 50:
             sti = ta.supertrend(df_calc['High'], df_calc['Low'], df_calc['Close'], length=10, multiplier=3)
             df_calc = df_calc.join(sti) 
             df_calc.ta.mfi(length=14, append=True); df_calc.ta.stochrsi(length=14, append=True)
@@ -160,14 +175,13 @@ def load_data_final(ticker, time):
             df_calc.ta.sma(length=20, close='Volume', prefix='VOL', append=True) 
             df_calc.ta.bbands(length=20, std=2, append=True)
             df_calc.ta.sma(length=20, append=True); df_calc.ta.sma(length=50, append=True)
-            # Ichimoku
             try:
                 ichi = ta.ichimoku(df_calc['High'], df_calc['Low'], df_calc['Close'], tenkan=9, kijun=26, senkou=52)
                 if ichi is not None: df_calc = pd.concat([df_calc, ichi[0]], axis=1)
             except: pass
-    except: df_calc = pd.DataFrame()
+    except: pass
 
-    # 3. XỬ LÝ BIỂU ĐỒ
+    df_chart = pd.DataFrame()
     try:
         interval = "15m" if time in ["1d", "5d"] else "1d"
         df_chart = stock.history(period=time, interval=interval)
@@ -176,16 +190,17 @@ def load_data_final(ticker, time):
             df_chart.ta.bbands(length=20, std=2, append=True)
             if interval == '1d':
                 try:
-                    ichi_chart = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
-                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_chart[0]], axis=1)
+                    ichi_c = ta.ichimoku(df_chart['High'], df_chart['Low'], df_chart['Close'])
+                    if ichi_chart is not None: df_chart = pd.concat([df_chart, ichi_c[0]], axis=1)
                 except: pass
-    except: df_chart = pd.DataFrame()
+    except: pass
 
-    # 4. TẢI INFO & BCTC (Anti-Ugly V36.1)
+    # 5. TẢI INFO CƠ BẢN
     try: info = stock.info
     except: info = {}
-    
     if info is None: info = {}
+    
+    # Fallback giá/vốn hóa nếu info thiếu
     try:
         fast = stock.fast_info
         if info.get('marketCap') is None: info['marketCap'] = fast.get('market_cap', 0)
@@ -194,6 +209,7 @@ def load_data_final(ticker, time):
     
     info['longName'] = info.get('longName', f"Cổ Phiếu {ticker}")
 
+    # Các dữ liệu phụ
     try: fin = stock.quarterly_financials 
     except: fin = pd.DataFrame()
     try: bal = stock.quarterly_balance_sheet 
@@ -657,6 +673,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
