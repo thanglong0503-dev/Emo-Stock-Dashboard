@@ -224,7 +224,7 @@ def run_prophet_forecast(df, periods=90):
         
         # --- 🛠️ FIX V36.3: CẤU HÌNH AN TOÀN ---
         m = Prophet(
-            daily_seasonality=True,      # Bật sóng ngày
+            daily_seasonality=False,      # Bật sóng ngày
             weekly_seasonality=True,      # Bật sóng tuần
             yearly_seasonality=True,      # Bật sóng năm
             changepoint_prior_scale=0.05, # Độ nhạy trung bình (vừa đủ mượt, không quá giật)
@@ -633,4 +633,5 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
