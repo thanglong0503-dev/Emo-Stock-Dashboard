@@ -553,7 +553,6 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
                # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
-               # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
                     # 1. Tiêu đề
                     st.subheader("📉 TradingView (Kênh Riêng Biệt)")
@@ -578,7 +577,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                             on_change=update_tv_ticker
                         )
                     with c2:
-                         st.info("💡 Tab này hoạt động 100% độc lập. Ngài có thể soi mã khác tại đây.")
+                         st.info("💡 Tab này hoạt động 100% độc lập. có thể xem mọi thứ trừ HOSE.")
 
                     # 5. LOGIC "DIỆT" MÃ ÚC & LÁCH LUẬT HOSE
                     raw_ticker = st.session_state.tv_independent_ticker.upper().strip()
@@ -714,6 +713,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
