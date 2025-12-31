@@ -552,48 +552,38 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     render_pro_chart(df_chart, symbol)
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
-            # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
+           # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    # 1. ĐỔI TIÊU ĐỀ ĐỂ NHẬN DIỆN CODE MỚI
-                    st.subheader("📉 TradingView (Bản V3 - Đã Fix)")
+                    st.subheader("📉 TradingView (Nhập Tự Do)")
                     
-                    # 2. KHỞI TẠO BỘ NHỚ V3 (Mới tinh)
-                    if 'tv_ticker_v3' not in st.session_state:
-                        st.session_state.tv_ticker_v3 = "BTC"
+                    # 1. KHỞI TẠO BỘ NHỚ (Reset tên biến mới để tránh cache cũ)
+                    if 'tv_raw_ticker' not in st.session_state:
+                        st.session_state.tv_raw_ticker = "BTC"
 
-                    # 3. HÀM CẬP NHẬT
-                    def update_tv_ticker_v3():
-                        st.session_state.tv_ticker_v3 = st.session_state.tv_input_v3
+                    # 2. HÀM CẬP NHẬT
+                    def update_tv_raw():
+                        st.session_state.tv_raw_ticker = st.session_state.tv_input_raw
 
-                    # 4. GIAO DIỆN VỚI LABEL MỚI
+                    # 3. Ô NHẬP LIỆU ĐƠN GIẢN
+                    # Code sẽ KHÔNG can thiệp vào những gì Ngài nhập
                     c1, c2 = st.columns([1, 3])
                     with c1:
                         st.text_input(
-                            "Nhập mã riêng (VD: GOLD, BTC):", # Label đã đổi
-                            value=st.session_state.tv_ticker_v3, 
-                            key="tv_input_v3", # Key mới toanh
-                            on_change=update_tv_ticker_v3
+                            "Nhập mã (VD: GOLD, BTC):", 
+                            value=st.session_state.tv_raw_ticker, 
+                            key="tv_input_raw",
+                            on_change=update_tv_raw
                         )
                     with c2:
-                         st.success("✅ Đã cập nhật giao diện V3 thành công!")
+                        st.info("💡 Tìm kiếm tự do trừ HOSE")
 
-                    # 5. LOGIC XỬ LÝ (BTC giữ nguyên, HPG thêm HSX)
-                    raw_ticker = st.session_state.tv_ticker_v3.upper().strip()
-                    
-                    # Danh sách loại trừ
-                    crypto_excludes = ["BTC", "ETH", "BNB", "XRP", "SOL", "DXY", "EUR", "USD", "JPY", "GOLD", "XAUUSD"]
+                    # 4. XỬ LÝ (Chỉ viết hoa, không thêm tiền tố)
+                    final_symbol = st.session_state.tv_raw_ticker.upper().strip()
 
-                    if len(raw_ticker) == 3 and raw_ticker.isalpha() and raw_ticker not in crypto_excludes:
-                        final_symbol = f"HSX:{raw_ticker}"
-                    elif ":" in raw_ticker:
-                        final_symbol = raw_ticker
-                    else:
-                        final_symbol = raw_ticker
-
-                    # 6. HIỂN THỊ WIDGET V3
+                    # 5. HIỂN THỊ WIDGET
                     html_code = f"""
                     <div class="tradingview-widget-container">
-                      <div id="tradingview_independent_v3"></div>
+                      <div id="tradingview_raw"></div>
                       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                       <script type="text/javascript">
                       new TradingView.widget(
@@ -611,7 +601,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
                       "details": true,
-                      "container_id": "tradingview_independent_v3"
+                      "container_id": "tradingview_raw"
                       }}
                       );
                       </script>
@@ -709,6 +699,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
