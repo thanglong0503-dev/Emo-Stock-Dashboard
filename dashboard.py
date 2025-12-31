@@ -553,33 +553,52 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
                # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
+               # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    # Tiêu đề & Ô nhập liệu ĐỘC LẬP (Dùng key riêng để không ăn theo main)
-                    c_tv1, c_tv2 = st.columns([1, 3])
-                    with c_tv1:
-                        # Mặc định là VNINDEX để nhìn thị trường chung
-                        tv_input = st.text_input("Gõ mã xem riêng:", value="VNINDEX", key="tv_independent_code")
+                    # 1. Tiêu đề
+                    st.subheader("📉 TradingView (Kênh Riêng Biệt)")
                     
-                    with c_tv2:
-                        st.write("") # Căn lề
-                        st.caption("💡 *Tab này hoạt động độc lập. Gõ **HPG**, **CEO**... để xem.*")
+                    # 2. KHỞI TẠO BỘ NHỚ RIÊNG (SESSION STATE)
+                    # Giúp Tab này "nhớ" cái mã Ngài đang xem, không bị reset khi Ngài bấm nút khác.
+                    if 'tv_independent_ticker' not in st.session_state:
+                        st.session_state.tv_independent_ticker = "VNINDEX"
 
-                    # --- LOGIC THÔNG MINH SỬA LỖI ---
-                    # 1. Chuyển về chữ in hoa
-                    target = tv_input.upper().strip()
+                    # 3. HÀM CẬP NHẬT MÃ
+                    def update_tv_ticker():
+                        st.session_state.tv_independent_ticker = st.session_state.tv_input_temp
+
+                    # 4. Ô NHẬP LIỆU ĐỘC LẬP
+                    # Dùng on_change để chỉ cập nhật khi Ngài nhấn Enter
+                    c1, c2 = st.columns([1, 3])
+                    with c1:
+                        st.text_input(
+                            "Nhập mã riêng (VD: HPG, CEO, GOLD):", 
+                            value=st.session_state.tv_independent_ticker, 
+                            key="tv_input_temp",
+                            on_change=update_tv_ticker
+                        )
+                    with c2:
+                         st.info("💡 Tab này hoạt động 100% độc lập. Ngài có thể soi mã khác tại đây.")
+
+                    # 5. LOGIC "DIỆT" MÃ ÚC & LÁCH LUẬT HOSE
+                    raw_ticker = st.session_state.tv_independent_ticker.upper().strip()
                     
-                    # 2. Xử lý lách luật & tránh nhầm hàng Úc
-                    # Nếu nhập 3 chữ cái (VD: HPG, VNM) -> Thử thêm HSX: để định vị VN
-                    if len(target) == 3 and target.isalpha():
-                        # Mẹo: Dùng HSX thay cho HOSE để không bị chặn bản quyền mà vẫn trúng đích
-                        final_symbol = f"HSX:{target}"
+                    # Nếu là mã 3 chữ cái (VD: HPG, VNM) -> Tự động thêm HSX:
+                    # Điều này bắt buộc TradingView lấy mã VN, không lấy mã Úc (hipages) nữa.
+                    if len(raw_ticker) == 3 and raw_ticker.isalpha():
+                        # Mẹo: Thêm HSX: vào trước. Ví dụ HPG -> HSX:HPG
+                        final_symbol = f"HSX:{raw_ticker}"
+                    # Nếu người dùng đã tự gõ HNX:CEO hoặc UPCOM:BSR thì giữ nguyên
+                    elif ":" in raw_ticker:
+                        final_symbol = raw_ticker
+                    # Các trường hợp VNINDEX, US30, GOLD...
                     else:
-                        # Các trường hợp khác (VNINDEX, BTCUSD...) để nguyên
-                        final_symbol = target
+                        final_symbol = raw_ticker
 
+                    # 6. HIỂN THỊ WIDGET
                     html_code = f"""
                     <div class="tradingview-widget-container">
-                      <div id="tradingview_independent"></div>
+                      <div id="tradingview_independent_final"></div>
                       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                       <script type="text/javascript">
                       new TradingView.widget(
@@ -597,7 +616,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
                       "details": true,
-                      "container_id": "tradingview_independent"
+                      "container_id": "tradingview_independent_final"
                       }}
                       );
                       </script>
@@ -695,6 +714,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
