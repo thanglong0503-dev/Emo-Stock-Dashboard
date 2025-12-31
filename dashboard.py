@@ -542,17 +542,17 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d or "Thấp" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-                # --- THAY ĐỔI: Thêm t_view vào danh sách Tabs ---
+               # --- SỬA LẠI ĐOẠN NÀY ---
+                # 1. Khai báo thêm t_view và thêm tên Tab vào danh sách
                 t1, t_view, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Săn Nến", "📉 TradingView Realtime", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
                 
+                # 2. Nội dung Tab 1 (Cũ)
                 with t1: render_pro_chart(df_chart, symbol)
                 
-                # --- THÊM MỚI: Widget TradingView ---
+                # 3. Nội dung Tab TradingView (MỚI)
                 with t_view:
                     st.subheader(f"📉 Biểu Đồ TradingView: {symbol}")
-                    # Xử lý mã để TradingView hiểu (Mặc định thêm HOSE nếu ko rõ sàn, nhưng để symbol trần vẫn ổn)
                     tv_symbol = f"HOSE:{symbol}" if len(symbol) == 3 else symbol 
-                    
                     html_code = f"""
                     <div class="tradingview-widget-container">
                       <div id="tradingview_12345"></div>
@@ -568,12 +568,10 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "theme": "dark",
                       "style": "1",
                       "locale": "vi_VN",
-                      "toolbar_bg": "#f1f3f6",
                       "enable_publishing": false,
                       "withdateranges": true,
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
-                      "details": true,
                       "container_id": "tradingview_12345"
                       }}
                       );
@@ -581,6 +579,10 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     </div>
                     """
                     components.html(html_code, height=650)
+                
+                # 4. Các Tab còn lại giữ nguyên
+                with t2:
+                    # ... (Code cũ của AI Prophet nằm ở đây)
                 
                 with t2:
                     # ... (Phần code AI Prophet cũ giữ nguyên từ đây)
@@ -674,6 +676,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
