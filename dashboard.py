@@ -542,17 +542,22 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                                 if "cao" in d or "Kém" in d or "giảm" in d or "Thấp" in d: st.warning(f"⚠️ {d}")
                                 else: st.write(f"✅ {d}")
 
-               # --- SỬA LẠI ĐOẠN NÀY ---
-                # 1. Khai báo thêm t_view và thêm tên Tab vào danh sách
+              # --- ĐOẠN CODE ĐÃ CĂN CHỈNH THỤT ĐẦU DÒNG CHUẨN ---
+                
+                # 1. Khai báo Tabs (Chú ý danh sách tên Tab phải khớp)
                 t1, t_view, t2, t3, t4, t5, t6, t7 = st.tabs(["📊 Biểu Đồ & Săn Nến", "📉 TradingView Realtime", "🔮 AI Prophet", "🌌 Đa Vũ Trụ", "📰 Tin Tức", "💰 Tài Chính", "🏢 Hồ Sơ", "🎁 Cổ Tức"])
                 
-                # 2. Nội dung Tab 1 (Cũ)
-                with t1: render_pro_chart(df_chart, symbol)
+                # 2. Nội dung Tab 1
+                with t1: 
+                    render_pro_chart(df_chart, symbol)
                 
-                # 3. Nội dung Tab TradingView (MỚI)
+                # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
                 with t_view:
                     st.subheader(f"📉 Biểu Đồ TradingView: {symbol}")
+                    # Xử lý mã symbol
                     tv_symbol = f"HOSE:{symbol}" if len(symbol) == 3 else symbol 
+                    
+                    # Tạo mã HTML
                     html_code = f"""
                     <div class="tradingview-widget-container">
                       <div id="tradingview_12345"></div>
@@ -578,11 +583,17 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       </script>
                     </div>
                     """
+                    # Render HTML
                     components.html(html_code, height=650)
                 
-                # 4. Các Tab còn lại giữ nguyên
+                # 4. Nội dung Tab 2 (AI Prophet) - Giữ nguyên code cũ
                 with t2:
-                    # ... (Code cũ của AI Prophet nằm ở đây)
+                    if PROPHET_AVAILABLE:
+                        with st.spinner("🔮 AI đang tiên tri..."):
+                            fig_ai, msg_ai = run_prophet_forecast(df_calc)
+                        if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
+                        else: st.error(msg_ai)
+                    else: st.warning("⚠️ Chưa cài thư viện Prophet")
                 
                 with t2:
                     # ... (Phần code AI Prophet cũ giữ nguyên từ đây)
@@ -676,6 +687,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
