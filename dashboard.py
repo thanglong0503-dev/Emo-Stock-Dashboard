@@ -554,36 +554,26 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
            # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    st.subheader("📉 TradingView (Nhập Tự Do)")
+                    st.subheader("📉 TradingView (Tự Do - Ổn Định)")
                     
-                    # 1. KHỞI TẠO BỘ NHỚ (Reset tên biến mới để tránh cache cũ)
-                    if 'tv_raw_ticker' not in st.session_state:
-                        st.session_state.tv_raw_ticker = "BTC"
+                    # 1. Ô NHẬP LIỆU ĐƠN GIẢN (Dùng Key mới để ép làm mới)
+                    # Streamlit sẽ tự động nhớ giá trị Ngài nhập nhờ vào cái key="tv_ultimate_input" này.
+                    # Mặc định là VNINDEX.
+                    tv_input_val = st.text_input(
+                        "Nhập mã (VD: BTC, GOLD, etc...):", 
+                        value="BTCUSD", 
+                        key="tv_ultimate_input"
+                    )
 
-                    # 2. HÀM CẬP NHẬT
-                    def update_tv_raw():
-                        st.session_state.tv_raw_ticker = st.session_state.tv_input_raw
+                    # 2. XỬ LÝ (Chỉ viết hoa và xóa khoảng trắng thừa)
+                    # Tuyệt đối KHÔNG thêm tiền tố HSX/HOSE
+                    final_symbol = tv_input_val.upper().strip()
 
-                    # 3. Ô NHẬP LIỆU ĐƠN GIẢN
-                    # Code sẽ KHÔNG can thiệp vào những gì Ngài nhập
-                    c1, c2 = st.columns([1, 3])
-                    with c1:
-                        st.text_input(
-                            "Nhập mã (VD: GOLD, BTC):", 
-                            value=st.session_state.tv_raw_ticker, 
-                            key="tv_input_raw",
-                            on_change=update_tv_raw
-                        )
-                    with c2:
-                        st.info("💡 Tìm kiếm tự do trừ HOSE")
-
-                    # 4. XỬ LÝ (Chỉ viết hoa, không thêm tiền tố)
-                    final_symbol = st.session_state.tv_raw_ticker.upper().strip()
-
-                    # 5. HIỂN THỊ WIDGET
+                    # 3. HIỂN THỊ WIDGET
+                    # Dùng container_id ngẫu nhiên để đảm bảo TradingView vẽ lại khi đổi mã
                     html_code = f"""
                     <div class="tradingview-widget-container">
-                      <div id="tradingview_raw"></div>
+                      <div id="tradingview_widget_final"></div>
                       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                       <script type="text/javascript">
                       new TradingView.widget(
@@ -601,7 +591,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
                       "details": true,
-                      "container_id": "tradingview_raw"
+                      "container_id": "tradingview_widget_final"
                       }}
                       );
                       </script>
@@ -699,6 +689,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
