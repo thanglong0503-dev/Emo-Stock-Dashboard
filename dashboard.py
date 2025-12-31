@@ -552,26 +552,28 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     render_pro_chart(df_chart, symbol)
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
-                # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
+               # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    # Tiêu đề đơn giản
-                    st.subheader(f"📉 Biểu Đồ TradingView: {symbol}")
+                    # Tiêu đề & Ô nhập liệu ĐỘC LẬP
+                    st.subheader("📉 TradingView (Kênh Độc Lập)")
                     
-                    # Logic tối giản: Chỉ dùng tên Symbol (VD: HPG, CEO). 
-                    # Không thêm HOSE: hay HNX: để tránh bị lỗi chặn bản quyền.
-                    # TradingView sẽ tự tìm mã VN nhờ cài đặt locale="vi_VN" bên dưới.
-                    tv_symbol_clean = symbol
+                    # Tạo một ô nhập riêng, không dùng biến 'symbol' của hệ thống chính
+                    # Mặc định để VNINDEX cho khác biệt
+                    tv_independent_symbol = st.text_input("Nhập mã xem riêng (Ví dụ: VIC, BTCUSD, GOLD):", value="VNINDEX", key="tv_standalone")
+                    
+                    # Logic: Nếu người dùng không nhập gì thì lấy VNINDEX, có nhập thì lấy mã đó
+                    target_symbol = tv_independent_symbol if tv_independent_symbol else "VNINDEX"
 
                     html_code = f"""
                     <div class="tradingview-widget-container">
-                      <div id="tradingview_12345"></div>
+                      <div id="tradingview_independent"></div>
                       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                       <script type="text/javascript">
                       new TradingView.widget(
                       {{
                       "width": "100%",
                       "height": 650,
-                      "symbol": "{tv_symbol_clean}",
+                      "symbol": "{target_symbol}",
                       "interval": "D",
                       "timezone": "Asia/Ho_Chi_Minh",
                       "theme": "dark",
@@ -582,7 +584,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
                       "details": true,
-                      "container_id": "tradingview_12345"
+                      "container_id": "tradingview_independent"
                       }}
                       );
                       </script>
@@ -680,6 +682,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
