@@ -585,17 +585,6 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     """
                     # Render HTML
                     components.html(html_code, height=650)
-                
-                # 4. Nội dung Tab 2 (AI Prophet) - Giữ nguyên code cũ
-                with t2:
-                    if PROPHET_AVAILABLE:
-                        with st.spinner("🔮 AI đang tiên tri..."):
-                            fig_ai, msg_ai = run_prophet_forecast(df_calc)
-                        if fig_ai: st.plotly_chart(fig_ai, use_container_width=True)
-                        else: st.error(msg_ai)
-                    else: st.warning("⚠️ Chưa cài thư viện Prophet")
-                
-                with t2:
                     # ... (Phần code AI Prophet cũ giữ nguyên từ đây)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -687,6 +676,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
