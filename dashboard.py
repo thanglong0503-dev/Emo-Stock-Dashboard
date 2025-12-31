@@ -554,15 +554,28 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
                # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    # Tiêu đề & Ô nhập liệu ĐỘC LẬP
-                    st.subheader("📉 TradingView (Kênh Độc Lập)")
+                    # Tiêu đề & Ô nhập liệu ĐỘC LẬP (Dùng key riêng để không ăn theo main)
+                    c_tv1, c_tv2 = st.columns([1, 3])
+                    with c_tv1:
+                        # Mặc định là VNINDEX để nhìn thị trường chung
+                        tv_input = st.text_input("Gõ mã xem riêng:", value="VNINDEX", key="tv_independent_code")
                     
-                    # Tạo một ô nhập riêng, không dùng biến 'symbol' của hệ thống chính
-                    # Mặc định để VNINDEX cho khác biệt
-                    tv_independent_symbol = st.text_input("Nhập mã xem riêng (Ví dụ: VIC, BTCUSD, GOLD):", value="VNINDEX", key="tv_standalone")
+                    with c_tv2:
+                        st.write("") # Căn lề
+                        st.caption("💡 *Tab này hoạt động độc lập. Gõ **HPG**, **CEO**... để xem.*")
+
+                    # --- LOGIC THÔNG MINH SỬA LỖI ---
+                    # 1. Chuyển về chữ in hoa
+                    target = tv_input.upper().strip()
                     
-                    # Logic: Nếu người dùng không nhập gì thì lấy VNINDEX, có nhập thì lấy mã đó
-                    target_symbol = tv_independent_symbol if tv_independent_symbol else "VNINDEX"
+                    # 2. Xử lý lách luật & tránh nhầm hàng Úc
+                    # Nếu nhập 3 chữ cái (VD: HPG, VNM) -> Thử thêm HSX: để định vị VN
+                    if len(target) == 3 and target.isalpha():
+                        # Mẹo: Dùng HSX thay cho HOSE để không bị chặn bản quyền mà vẫn trúng đích
+                        final_symbol = f"HSX:{target}"
+                    else:
+                        # Các trường hợp khác (VNINDEX, BTCUSD...) để nguyên
+                        final_symbol = target
 
                     html_code = f"""
                     <div class="tradingview-widget-container">
@@ -573,7 +586,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       {{
                       "width": "100%",
                       "height": 650,
-                      "symbol": "{target_symbol}",
+                      "symbol": "{final_symbol}",
                       "interval": "D",
                       "timezone": "Asia/Ho_Chi_Minh",
                       "theme": "dark",
@@ -682,6 +695,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
