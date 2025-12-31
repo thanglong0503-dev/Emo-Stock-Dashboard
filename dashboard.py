@@ -571,13 +571,13 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     c1, c2 = st.columns([1, 3])
                     with c1:
                         st.text_input(
-                            "Nhập mã riêng (VD: HPG, CEO, GOLD):", 
+                            "Nhập mã riêng (VD:GOLD,BTC..):", 
                             value=st.session_state.tv_independent_ticker, 
                             key="tv_input_temp",
                             on_change=update_tv_ticker
                         )
                     with c2:
-                         st.info("💡 Tab này hoạt động 100% độc lập. có thể xem mọi thứ trừ HOSE.")
+                         st.info("💡 Tab này hoạt động 100% độc lập")
 
                     # 5. LOGIC "DIỆT" MÃ ÚC & LÁCH LUẬT HOSE
                     raw_ticker = st.session_state.tv_independent_ticker.upper().strip()
@@ -586,7 +586,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     # Điều này bắt buộc TradingView lấy mã VN, không lấy mã Úc (hipages) nữa.
                     if len(raw_ticker) == 3 and raw_ticker.isalpha():
                         # Mẹo: Thêm HSX: vào trước. Ví dụ HPG -> HSX:HPG
-                        final_symbol = f"HSX:{raw_ticker}"
+                        final_symbol = f"{raw_ticker}"
                     # Nếu người dùng đã tự gõ HNX:CEO hoặc UPCOM:BSR thì giữ nguyên
                     elif ":" in raw_ticker:
                         final_symbol = raw_ticker
@@ -713,6 +713,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
