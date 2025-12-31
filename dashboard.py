@@ -554,28 +554,13 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
                 # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    # Chia cột: 
-                    # tv_col1: Chọn sàn
-                    # tv_col2: Nhập mã thủ công (nếu cần)
-                    tv_col1, tv_col2 = st.columns([1, 4])
+                    # Tiêu đề đơn giản
+                    st.subheader(f"📉 Biểu Đồ TradingView: {symbol}")
                     
-                    with tv_col1:
-                        # Chọn sàn
-                        exchange = st.selectbox("Sàn:", ["HOSE", "HNX", "UPCOM"], index=0, key="tv_exchange")
-                    
-                    with tv_col2:
-                        # Tự động map HOSE -> HSX để lách lỗi TradingView
-                        # Nếu chọn HOSE thì đổi thành HSX, các sàn khác giữ nguyên
-                        exchange_code = "HSX" if exchange == "HOSE" else exchange
-                        
-                        # Tạo mã mặc định
-                        default_tv_symbol = f"{exchange_code}:{symbol}"
-                        
-                        # Cho phép người dùng sửa tay nếu vẫn lỗi
-                        final_tv_symbol = st.text_input("Mã TradingView (Sửa nếu lỗi):", value=default_tv_symbol, key="tv_symbol_manual")
-                        
-                        # Hướng dẫn nhỏ
-                        st.caption(f"💡 Mẹo: Nếu lỗi, hãy thử xóa tên sàn, chỉ để lại **{symbol}**")
+                    # Logic tối giản: Chỉ dùng tên Symbol (VD: HPG, CEO). 
+                    # Không thêm HOSE: hay HNX: để tránh bị lỗi chặn bản quyền.
+                    # TradingView sẽ tự tìm mã VN nhờ cài đặt locale="vi_VN" bên dưới.
+                    tv_symbol_clean = symbol
 
                     html_code = f"""
                     <div class="tradingview-widget-container">
@@ -586,7 +571,7 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       {{
                       "width": "100%",
                       "height": 650,
-                      "symbol": "{final_tv_symbol}",
+                      "symbol": "{tv_symbol_clean}",
                       "interval": "D",
                       "timezone": "Asia/Ho_Chi_Minh",
                       "theme": "dark",
@@ -695,6 +680,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
