@@ -552,12 +552,31 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     render_pro_chart(df_chart, symbol)
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
+                # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
-                    st.subheader(f"📉 Biểu Đồ TradingView: {symbol}")
-                    # Xử lý mã symbol
-                    tv_symbol = f"HOSE:{symbol}" if len(symbol) == 3 else symbol 
+                    # Chia cột: 
+                    # tv_col1: Chọn sàn
+                    # tv_col2: Nhập mã thủ công (nếu cần)
+                    tv_col1, tv_col2 = st.columns([1, 4])
                     
-                    # Tạo mã HTML
+                    with tv_col1:
+                        # Chọn sàn
+                        exchange = st.selectbox("Sàn:", ["HOSE", "HNX", "UPCOM"], index=0, key="tv_exchange")
+                    
+                    with tv_col2:
+                        # Tự động map HOSE -> HSX để lách lỗi TradingView
+                        # Nếu chọn HOSE thì đổi thành HSX, các sàn khác giữ nguyên
+                        exchange_code = "HSX" if exchange == "HOSE" else exchange
+                        
+                        # Tạo mã mặc định
+                        default_tv_symbol = f"{exchange_code}:{symbol}"
+                        
+                        # Cho phép người dùng sửa tay nếu vẫn lỗi
+                        final_tv_symbol = st.text_input("Mã TradingView (Sửa nếu lỗi):", value=default_tv_symbol, key="tv_symbol_manual")
+                        
+                        # Hướng dẫn nhỏ
+                        st.caption(f"💡 Mẹo: Nếu lỗi, hãy thử xóa tên sàn, chỉ để lại **{symbol}**")
+
                     html_code = f"""
                     <div class="tradingview-widget-container">
                       <div id="tradingview_12345"></div>
@@ -566,8 +585,8 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       new TradingView.widget(
                       {{
                       "width": "100%",
-                      "height": 600,
-                      "symbol": "{tv_symbol}",
+                      "height": 650,
+                      "symbol": "{final_tv_symbol}",
                       "interval": "D",
                       "timezone": "Asia/Ho_Chi_Minh",
                       "theme": "dark",
@@ -577,14 +596,14 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                       "withdateranges": true,
                       "hide_side_toolbar": false,
                       "allow_symbol_change": true,
+                      "details": true,
                       "container_id": "tradingview_12345"
                       }}
                       );
                       </script>
                     </div>
                     """
-                    # Render HTML
-                    components.html(html_code, height=650)
+                    components.html(html_code, height=700)
                     # ... (Phần code AI Prophet cũ giữ nguyên từ đây)
                 with t2:
                     if PROPHET_AVAILABLE:
@@ -676,6 +695,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
