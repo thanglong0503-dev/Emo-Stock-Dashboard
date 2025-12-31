@@ -552,45 +552,44 @@ elif mode == "🔮 Phân Tích Chuyên Sâu":
                     render_pro_chart(df_chart, symbol)
                 
                 # 3. Nội dung Tab TradingView (QUAN TRỌNG: Các dòng bên dưới phải thụt vào)
-               # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
+              # --- THAY THẾ TOÀN BỘ NỘI DUNG BÊN TRONG with t_view: ---
                 with t_view:
                     # 1. Tiêu đề
                     st.subheader("📉 TradingView (Kênh Riêng Biệt)")
                     
-                    # 2. KHỞI TẠO BỘ NHỚ RIÊNG (SESSION STATE)
-                    # Giúp Tab này "nhớ" cái mã Ngài đang xem, không bị reset khi Ngài bấm nút khác.
+                    # 2. KHỞI TẠO BỘ NHỚ RIÊNG (Mặc định là BTC theo lệnh My Lord)
                     if 'tv_independent_ticker' not in st.session_state:
-                        st.session_state.tv_independent_ticker = "VNINDEX"
+                        st.session_state.tv_independent_ticker = "BTC"
 
-                    # 3. HÀM CẬP NHẬT MÃ
+                    # 3. HÀM CẬP NHẬT
                     def update_tv_ticker():
                         st.session_state.tv_independent_ticker = st.session_state.tv_input_temp
 
-                    # 4. Ô NHẬP LIỆU ĐỘC LẬP
-                    # Dùng on_change để chỉ cập nhật khi Ngài nhấn Enter
+                    # 4. GIAO DIỆN NHẬP LIỆU (Đã sửa Label)
                     c1, c2 = st.columns([1, 3])
                     with c1:
                         st.text_input(
-                            "Nhập mã riêng (VD:GOLD,BTC..):", 
+                            "Nhập mã riêng (VD: GOLD, BTC):", 
                             value=st.session_state.tv_independent_ticker, 
                             key="tv_input_temp",
                             on_change=update_tv_ticker
                         )
                     with c2:
-                         st.info("💡 Tab này hoạt động 100% độc lập")
+                         st.info("💡 Tab này hoạt động 100% độc lập. Ngài có thể soi mã khác tại đây.")
 
-                    # 5. LOGIC "DIỆT" MÃ ÚC & LÁCH LUẬT HOSE
+                    # 5. XỬ LÝ LOGIC THÔNG MINH (Tránh nhầm Crypto thành Cổ phiếu)
                     raw_ticker = st.session_state.tv_independent_ticker.upper().strip()
                     
-                    # Nếu là mã 3 chữ cái (VD: HPG, VNM) -> Tự động thêm HSX:
-                    # Điều này bắt buộc TradingView lấy mã VN, không lấy mã Úc (hipages) nữa.
-                    if len(raw_ticker) == 3 and raw_ticker.isalpha():
-                        # Mẹo: Thêm HSX: vào trước. Ví dụ HPG -> HSX:HPG
-                        final_symbol = f"{raw_ticker}"
-                    # Nếu người dùng đã tự gõ HNX:CEO hoặc UPCOM:BSR thì giữ nguyên
+                    # Danh sách các mã 3 chữ cái nhưng là Crypto/Forex (để không bị ép thêm HSX:)
+                    crypto_excludes = ["BTC", "ETH", "BNB", "XRP", "SOL", "DXY", "EUR", "USD", "JPY"]
+
+                    # Logic:
+                    # - Nếu là 3 chữ cái (VD: HPG) VÀ KHÔNG PHẢI Crypto -> Thêm HSX: (để sửa lỗi cổ phiếu Úc)
+                    # - Nếu là BTC, ETH... -> Giữ nguyên để TradingView tự tìm Crypto
+                    if len(raw_ticker) == 3 and raw_ticker.isalpha() and raw_ticker not in crypto_excludes:
+                        final_symbol = f"HSX:{raw_ticker}"
                     elif ":" in raw_ticker:
                         final_symbol = raw_ticker
-                    # Các trường hợp VNINDEX, US30, GOLD...
                     else:
                         final_symbol = raw_ticker
 
@@ -713,6 +712,7 @@ elif mode == "📊 Bảng Giá & Máy Quét":
                         st.success(f"💎 NGÔI SAO DÒNG {name}: **{df_res.iloc[0]['Mã']}** ({df_res.iloc[0]['Điểm']} điểm)")
 
 st.markdown('<div class="footer">Developed by <b>Thăng Long</b> | V36.1 Ultimate - Clean & Stable</div>', unsafe_allow_html=True)
+
 
 
 
